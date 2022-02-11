@@ -51,7 +51,7 @@ Use the map to show top10 destination from Austin
     ## 9              -87.9048
     ## 10  -112.01200103759766
 
-![](ECO-395-Homework-1-ShuyanYue-YangxiYu-ChenTang/figures/unnamed-chunk-5-1.png)
+![](figures/unnamed-chunk-5-1.png)
 
 <center><b>Figure 1: Top10 Destination from Austin<center><b>
 
