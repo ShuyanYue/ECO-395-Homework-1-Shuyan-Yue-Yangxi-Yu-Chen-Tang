@@ -85,7 +85,7 @@ Take a look at which day has the highest delay rate in the week:
     ## 6         6  5618      1769      0.315
     ## 7         7  6871      2442      0.355
 
-![](Exercise-1-1_files/figure-markdown_strict/unnamed-chunk-10-1.png)
+![](figures/unnamed-chunk-13-1.png)
 
 <center><b>Figure 2: The Departure Delay Rate in the Week<center><b>
 
