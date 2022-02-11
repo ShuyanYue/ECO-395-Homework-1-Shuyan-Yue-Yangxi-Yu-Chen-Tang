@@ -1,0 +1,655 @@
+---
+title: "Exercise 1-1"
+author: "Shuyan Yue / Yangxi Yu / Chen Tang"
+date: "2/6/2022"
+output:
+  md_document: default
+---
+# Problem 1: Data visualization: flights at ABIA
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(ggmap)
+library(dplyr)
+library(ggrepel)
+
+ABIA=read.csv("~/Downloads/ABIA.csv")
+```
+
+
+## 1.The total airplanes depar from Austin in 2008
+
+Show the total airplanes of each airline:
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+total_airplanes = ABIA %>%
+filter(Origin == "AUS") %>%
+group_by(UniqueCarrier) %>%
+summarize(count = n()) %>%
+arrange(desc(count))
+```
+
+**Table 1**
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+total_airplanes
+```
+
+Use the map to show top10 destination from Austin
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ABIA_1=
+  ABIA %>%
+  mutate(hour = 
+          ifelse(CRSDepTime %in% 0:100,24,
+          ifelse(CRSDepTime %in% 100:200,01,
+          ifelse(CRSDepTime %in% 200:300,02,
+          ifelse(CRSDepTime %in% 300:400,03,
+          ifelse(CRSDepTime %in% 400:500,04,
+          ifelse(CRSDepTime %in% 500:600,05,
+          ifelse(CRSDepTime %in% 600:700,06,
+          ifelse(CRSDepTime %in% 700:800,07,
+          ifelse(CRSDepTime %in% 800:900,08,
+          ifelse(CRSDepTime %in% 900:1000,09,
+          ifelse(CRSDepTime %in% 1000:1100,10,
+          ifelse(CRSDepTime %in% 1100:1200,11,
+          ifelse(CRSDepTime %in% 1200:1300,12,
+          ifelse(CRSDepTime %in% 1300:1400,13,
+          ifelse(CRSDepTime %in% 1400:1500,14,
+          ifelse(CRSDepTime %in% 1500:1600,15,
+          ifelse(CRSDepTime %in% 1600:1700,16,
+          ifelse(CRSDepTime %in% 1700:1800,17,
+          ifelse(CRSDepTime %in% 1800:1900,18,
+          ifelse(CRSDepTime %in% 1900:2000,19,
+          ifelse(CRSDepTime %in% 2000:2100,20,
+          ifelse(CRSDepTime %in% 2100:2200,21,
+          ifelse(CRSDepTime %in% 2200:2300,22,
+          ifelse(CRSDepTime %in% 2300:2400,23,NA
+          ))))))))))))))))))))))))
+          )
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+airport_codes_data = read.csv('~/Desktop/airport-codes.csv')
+location_data=airport_codes_data%>%
+summarize(Dest=local_code,
+coordinate=coordinates,
+lon=sub(",.*$",'',coordinates),
+lat=sub(".*,",'',coordinates))
+
+Flight_Frequency_company=ABIA_1%>%
+group_by(Dest)%>%
+summarize(total=n())%>%
+arrange(desc(total))%>%
+head(10)
+
+data1=merge(Flight_Frequency_company,location_data,by='Dest')
+
+usMap <- borders("state", colour="grey", fill="white")
+
+data1
+data1$lon <- as.numeric(data1$lon)
+data1$lat <- as.numeric(data1$lat)
+par(mar=c(0,0,0,0))
+ggplot()+usMap+
+    geom_point(data=data1,
+             aes(x=lat, y=lon), 
+             colour="blue",
+             shape=23,
+             size=2)+
+  geom_label_repel(aes(x=lat, y=lon,label=Dest),data=data1)+
+  geom_point(
+             aes(x= -97.6698989868164, y=30.194499969482422),
+             shape=5,
+             size=4,
+             colour="red")+
+  geom_curve(data=data1,
+             aes(x=lat, y=lon, xend=-97.6698989868165, yend=30.194499969482422),
+             col="#00008b",
+             size=.5,
+             curvature=0.2)
+```
+**Figure 1:** Top10 Destination from Austin
+
+Summarize the total airplanes departing from Austin:
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+total_airplanes  %>%
+summarize(total = sum(count))
+```
+
+In 2008, there were total 49623 airplanes departing from Austin. Among them, Southwest Airlines (WN) had the most departing flights.
+
+
+## 2. Show the delay information of the departure of airlane for one week
+
+Creat a new variable to find whether the departure of airlane is delay:
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ABIA = ABIA %>%
+mutate(dep_delay = ifelse(DepDelay > 0, 1, 0))
+```
+
+### (1) The departure delay rate in the week
+
+Take a look at which day has the highest delay rate in the week:
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+delay_rate_days = ABIA %>%
+filter(Origin == "AUS", Cancelled == 0) %>%
+group_by(DayOfWeek) %>%
+summarise(count = n(), num_delay = sum(dep_delay), rate_delay = num_delay/count)
+```
+
+**Table 2**
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+delay_rate_days
+```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(delay_rate_days) +
+geom_line(aes(x=DayOfWeek, y=rate_delay)) +
+scale_x_continuous(breaks = 1:7) +
+labs(x="Day of Week", y="Departure Delay Rate", title="Delay Rate in the Week")
+```
+**Figure 2:** The Departure Delay Rate in the Week
+
+From the line graphs, it shows that in one week AUS had the lowest departure delay rate on Tuesday and Saturday，and highest departure delay rate on Friday.
+
+
+### (2) The departure delay rates of airlines in total
+
+Take a look at which airline has the highest delay rate in total:
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+delay_rate_airline_total = ABIA %>%
+filter(Origin == "AUS", Cancelled == 0) %>%
+group_by(UniqueCarrier) %>%
+summarise(count = n(), num_delay = sum(dep_delay), rate_delay = num_delay/count)
+```
+
+**Table 3**
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+delay_rate_airline_total
+```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(delay_rate_airline_total) +
+geom_col(aes(x=UniqueCarrier, y=rate_delay)) +
+labs(x="Airlines", y="Departure Delay Rate", title="Total Delay Rate - Airline")
+```
+**Figure 3:** The Total Delay Rate of Airlines
+
+From the barplot, we can see that Southwest Airlines (WN) and ExpressJet (EV) had the highest departure delay rate, US  Airways (US) hds the lowest departure delay rate.
+
+### (3) The departure delay rates of airlines in the week
+
+Take a look at which day did the airline has the highest delay rate in the week:
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+delay_rate_airline = ABIA %>%
+filter(Origin == "AUS", Cancelled == 0) %>%
+group_by(DayOfWeek, UniqueCarrier) %>%
+summarise(count = n(), num_delay = sum(dep_delay), rate_delay = num_delay/count)
+```
+
+**Table 4**
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+delay_rate_airline
+```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(delay_rate_airline) +
+geom_line(aes(x=DayOfWeek, y=rate_delay)) +
+facet_wrap(~UniqueCarrier) +
+scale_x_continuous(breaks = 1:7) +
+labs(x="Day of Week", y="Departure Delay Rate", title="Delay Rate in the Week-Airline")
+```
+**Figure 4:** The Delay Rate of Airlines in the Week
+
+From the line graph, it shows that in AUS, Southwest (WN), the airline with the highest number of flights, had the lowest departure delays on Tuesdays and Saturdays in 2008.
+
+In conclusion, in AUS, to avoid departure delays, you should try to avoid traveling on Friday and choosing Southwest Airlines. ExpressJet or choosing traveling on Tuesdays or Saturdays are good choices.
+
+## 3.Show the delay information of the departure of airlane in a day
+
+Delay Rate and Average_Delay_Time:
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ABIA_2=ABIA_1%>%
+  group_by(hour)%>%
+  filter(hour!=24)%>%
+  summarize(
+  mean_dep_delay=mean(DepDelay, na.rm=TRUE),
+  std_dev=sd(DepDelay,na.rm = TRUE),
+  percentage=sum(DepDelay>0,na.rm=TRUE)/n(),
+  total=n())
+```
+
+Make the chart of average departure delay:
+
+Average departure delay 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(data=ABIA_2,aes(x=factor(hour),y=mean_dep_delay ,fill=percentage))+
+   geom_col() +
+  labs(title = "Average Delay in Different Departure Hour",
+       x = "Departure_time(hour)",
+       y = "Average Delay(minutes)",
+       legend="delay rate",
+       caption="The shadow means delay rate. The deeper the color, the lower the delay rate ",
+       position='dodge')+
+  theme(plot.title = element_text(hjust = 0.5))
+```
+**Figure 5**
+
+From the bar plot, the departure delay rate and the average delay time is lowest in the morning.
+Evening had the highest delay rate and delay time.
+
+Take a look at the departure delay hour in one day around the 10 airlines that have the most airplanes.
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+Top_10_flight=ABIA_1%>%
+  group_by(UniqueCarrier)%>%
+  summarize(total=n())%>%
+  arrange(desc(total))%>%
+  head(10)%>%
+  select(UniqueCarrier)
+
+top=Top_10_flight$UniqueCarrier
+
+
+ABIA_3=ABIA_1%>%
+  group_by(hour,UniqueCarrier)%>%
+  filter(UniqueCarrier %in% top)%>%
+  summarize(
+  mean_dep_delay=mean(DepDelay, na.rm=TRUE))%>%
+  arrange(desc(hour))
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(data=ABIA_3)+
+  geom_col(aes(x=factor(hour), y=mean_dep_delay), height=1,width=1)+
+  facet_wrap(~UniqueCarrier,nrow=2, ,scales = "free_y",dir = "v")+
+  labs(title = "Average Delay in Different Departure Hour",
+       x = "Departure(hour)",
+       y = "Average Delay(minutes)",
+       caption="The data is top 10 airline",
+       position='dodge')+
+  theme(axis.text.x = element_text(colour = "grey20", size = 5, angle = 90, hjust = 0.5, vjust = 0.5),
+        axis.text.y = element_text(colour = "grey20", size = 5))
+```
+**Figure 6**
+
+From the bar plot, Southwest Airlines (WN), the airliane with the most airplanes, had the most departure delay rate in the evening.
+
+In conclusion, the best departure time to optimize your flight plan from Austin-Bergstrom International Airport would be from 5:00 to 10:00. In this time slot, the delay rate is lower than 30%, much lower than that in other time slot. Also, the amount of flight is sufficient. Besides, as to top-10 airlines, especially top 3 airlines (WN, AA and OO), the best time to get rid of departure delay is from 5:00 to 10:00 within 5 mins delay in average.
+
+## 4. Show the delay information of the arrival of airlane in a day
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ABIA_AUS = ABIA %>%
+filter(Origin == "AUS") 
+
+ABIA_AUS$DepTime=ABIA_AUS$DepTime%/%100
+ABIA_AUS$avg_delay=mean(ABIA_AUS$ArrDelay)
+```
+Find the best time of the day through arrival delay rate
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ABIA_AUS_summary=ABIA_AUS %>%
+  group_by(DepTime) %>%
+  summarize(avg_delay=mean(ArrDelay,na.rm=TRUE))
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(ABIA_AUS_summary)+
+  geom_col(aes(x=DepTime,y=avg_delay), )+
+  scale_x_continuous(breaks = seq(0,24,1))+
+  labs(title ='Average Arrival Delay of a day',
+       x='Departure Time',
+       y='Average Delay' )
+```
+**Figure 7**
+
+From the bar plot,we can see that the arrival delay rate in the morning(5am-11pm) is relatively less, and even has the chance to take off early.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ABIA_AUS_summary2=ABIA_AUS %>%
+  group_by(DepTime,UniqueCarrier) %>%
+  summarize(avg_delay=mean(ArrDelay,na.rm=TRUE)
+            )
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(ABIA_AUS_summary2)+
+  geom_col(aes(x=DepTime,y=avg_delay))+
+  scale_x_continuous(breaks = seq(0,24,2))+
+  facet_wrap(~UniqueCarrier)+
+  labs(title ='Average Arrival Delay of a day across Airlines',
+       x='Departure Time',
+       y='Average Delay' )
+```
+**Figure 8**
+
+From the bar plot, WN, with the most departing flight, the arrival delay rate at 6am-14pm is relatively less. This time period is a good choice.
+
+Take a look at the arrival delay rate of the popular airport in total:
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ABIA_AUS_badairports=ABIA%>%
+  group_by(Dest)%>%
+  summarize(avg_delay=mean(ArrDelay,na.rm=T))%>%
+  arrange(desc(avg_delay))
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(aes(x=Dest,y=avg_delay), data=subset(ABIA_AUS_badairports, avg_delay >10))+
+  geom_col()+
+  labs(title ='Average Arrival Delay in the Worst 10 Destination',
+       x='Destination',
+       y='Average Delay' )
+```
+**Figure 9**
+
+From the bar plot, we can see that 	Des Moines Intl Airport (DSM) had the highest delay rate as the arrival airport in the whole year.
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ABIA_AUS_badairports2=ABIA_AUS%>%
+  group_by(Month,Dest)%>%
+  summarize(avg_delay=mean(ArrDelay,na.rm=T))%>%
+  arrange(desc(avg_delay))%>%
+  filter(row_number(Month)<=10)
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(data=ABIA_AUS_badairports2,aes(x=Dest,y=avg_delay))+
+  geom_col()+
+  facet_wrap(~Month, scales='free')+
+  labs(title ='Average Arrival Delay in the Worst 10 Destination over Month',
+       x='Destination',
+       y='Average Delay' )
+```
+**Figure 10**
+
+From the bar plot,we can see that September has the lowest arrival delay rate around the whole year. Arrival delays are relatively similar across popular airports in every month except March and October.
+
+In conclusion, the best time of day to fly to minimize delays is the morning, and this basically doesn’t change by airline. For customers who want to take off early, they may choose departure at 5 or 6 am. For the bad airports, the results do change over months, but the gap between top 10 bad airports each month is not significant, excluding March and October.
+
+
+# Problem 2: Wrangling the Billboard Top 100
+
+
+## Part A
+
+Show the top 10 most popular songs since 1958:
+
+**Table 1**
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+billboard = read.csv("~/Downloads/billboard.csv")
+top10_songs = billboard %>%
+group_by(song, performer) %>%
+summarize(count = n()) %>%
+arrange(desc(count))
+top10_songs %>%
+head(10)
+```
+
+## Part B
+
+Show the number of unique songs that appeared in the Billboard Top 100 on given year:
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+unique = billboard %>%
+filter(year!=1958&year!=2021) %>%
+group_by(year,performer,song) %>%
+summarise(year,performer,song) %>%
+unique() %>%
+group_by(year) %>%
+summarise(count=n())
+```
+
+**Table 2**
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+unique
+```
+
+Use the line graph of unique songs to show the "musical diversity"
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(unique) +
+geom_line(aes(x=year, y=count)) +
+labs(title="Musical Diversity over Year", x="Year", y="the Number of Unique Songs")
+```
+**Figure 1**
+
+## Part C
+
+Show the songs that appeared on the Billboard Top 100 for at least ten weeks:
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+tenweek_hit = top10_songs %>%
+filter(count >= 10) %>%
+arrange(desc(count)) %>%
+group_by(performer) %>%
+summarize(count = n()) %>%
+arrange(desc(count))
+```
+
+**Table 3**
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+tenweek_hit
+```
+
+There are 19 artists in U.S. musical history since 1958 who have had at least 30 songs that were "ten-week hits."
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+tenweek_hit_30 = tenweek_hit %>%
+filter(count >= 30)
+```
+
+**Table 4**
+```{rr echo=FALSE, message=FALSE, warning=FALSE}
+tenweek_hit_30
+```
+
+Use the bar plot to show the 19 artists:
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(tenweek_hit_30, aes(count, fct_reorder(performer,count)))+
+geom_col() +
+labs(title="Ten-week hit", y="Performer", x="the Number of Songs")
+```
+**Figure 2**
+
+# Problem 3: Wrangling the Olympics
+
+## Part A
+
+Show the 95th percentile of heights for female competitors across all Athletics events:
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+olympics_top20 = read.csv("~/Downloads/olympics_top20.csv")
+```
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+olympics_top20 %>%
+filter(sex == "F" & sport == "Athletics") %>%
+summarize(q95_height = quantile(height, 0.95))
+```
+
+### Part B
+
+Show the top 10 variability in competitor's heights of women's event:
+
+**Table 1**
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+olympics_top20 %>%
+select(sex,height,event) %>%
+filter(sex == "F") %>%
+group_by(event) %>%
+summarize(sd_height = sd(height)) %>%
+arrange(desc(sd_height)) %>%
+head(10)
+```
+
+### Part C
+
+1.Show the trend of the average age of Olympic swimmers changed over time:
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+trend_age_swimming_total = olympics_top20 %>%
+select(age,year,sport) %>%
+filter(sport == "Swimming") %>%
+group_by(year) %>%
+summarize(avg_age = mean(age))
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(trend_age_swimming_total) +
+geom_line(aes(x=year, y=avg_age)) +
+labs(x = "Years", y = "Average Age", title = "The Trend of Age of Swimmers")
+```
+**Figure 1:** Trend for Total Swimmers
+
+2.Show the trend of the average age of male swimmers and female swimmers changed over time:
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+trend_age_swimming = olympics_top20 %>%
+select(sex,age,year,sport) %>%
+filter(sport == "Swimming") %>%
+group_by(year, sex) %>%
+summarize(avg_age = mean(age)) 
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(trend_age_swimming) +
+geom_line(aes(x=year, y=avg_age, color=sex)) +
+labs(x = "Years", y = "Average Age", title = "The Trend of Age of Swimmers - Male and Female")
+```
+**Figure 2:** Trend for Male and Female Swimmers
+
+## Problem 4: Wrangling the Billboard Top 100
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+sclass = read.csv('~/Downloads/sclass.csv')
+library(tidyverse)
+library(ggplot2)
+library(mosaic)
+library(FNN)
+library(foreach)
+library(rsample)
+library(caret)
+library(modelr)
+library(parallel)
+```
+### 1. Take a look at 350 trim level
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+sclass350 = filter(sclass, trim == "350")
+```
+Creat a range of k:
+
+**Table 1** 
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+k_grid = c(2,4,6,8,10,12,14,16,18,20,25,30,35,40,45,50,55,60,65,70,75,80,85,90,95,100)
+k_grid
+```
+K-fold cross validation
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+K_folds = 10
+sclass_350_folds = crossv_kfold(sclass350, k=K_folds)
+```
+Model across the train/test splits
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+cv_grid = foreach(k = k_grid, .combine='rbind') %dopar% {
+models = map(sclass_350_folds$train, ~ knnreg(price ~ mileage, k=k, data = ., use.all=FALSE))
+errs = map2_dbl(models, sclass_350_folds$test, modelr::rmse)
+c(k=k, err = mean(errs), std_err = sd(errs)/sqrt(K_folds))
+} %>% as.data.frame
+
+```
+**Table 2**
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+head(cv_grid)
+```
+Plot means and standard errors across k
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(cv_grid) +
+geom_point(aes(x=k, y=err)) +
+geom_errorbar(aes(x=k, ymin = err-std_err, ymax = err+std_err)) +
+labs(x="k", y="RMSE", title="RMSE across Multiple Values of K - 350")
+```
+**Figure 1** 
+
+Find the optimal value of k
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+k_optimal = k_grid[which.min(cv_grid$err)]
+```
+KNN with optimal k
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+knn_k_optimal = knnreg(price ~ mileage, k=k_optimal, data = sclass350)
+```
+
+Attach the predictions to the data and add the predictions
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+sclass350 = sclass350 %>%
+mutate(price_pred = predict(knn_k_optimal, sclass350))
+
+sclass350 = ggplot(data = sclass350) +
+geom_point(mapping = aes(x = mileage, y = price), alpha=0.2)
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+sclass350 + geom_line(aes(x = mileage, y = price_pred), color='yellowgreen', size=1.5)
+```
+**Figure 2** 
+
+### 2. Take a look at 65 AMG trim level
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+sclass65AMG = filter(sclass, trim == "65 AMG")
+```
+K-fold cross validation
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+sclass_65AMG_folds = crossv_kfold(sclass65AMG, k=K_folds)
+```
+Model across the same train/test splits
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+cv_grid2 = foreach(k = k_grid, .combine='rbind') %dopar% {
+models = map(sclass_65AMG_folds$train, ~ knnreg(price ~ mileage, k=k, data = ., use.all=FALSE))
+errs = map2_dbl(models, sclass_65AMG_folds$test, modelr::rmse)
+c(k=k, err = mean(errs), std_err = sd(errs)/sqrt(K_folds))
+} %>% as.data.frame
+```
+**Table 3**
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+head(cv_grid2)
+```
+Plot means and standard errors versus k
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(cv_grid2) +
+geom_point(aes(x=k, y=err)) +
+geom_errorbar(aes(x=k, ymin = err-std_err, ymax = err+std_err)) +
+labs(x="k", y="RMSE", title="RMSE across Multiple Values of K - 65AMG")
+```
+**Figure 3** 
+
+Find the optimal value of k
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+k_optimal = k_grid[which.min(cv_grid2$err)]
+```
+KNN with optimal k
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+knn_k_optimal = knnreg(price ~ mileage, k=k_optimal, data = sclass65AMG)
+```
+
+Attach the predictions to the data and add the predictions
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+sclass65AMG = sclass65AMG %>%
+mutate(price_pred = predict(knn_k_optimal, sclass65AMG))
+
+sclass65AMG = ggplot(data = sclass65AMG) +
+geom_point(mapping = aes(x = mileage, y = price), alpha=0.2)
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+sclass65AMG + geom_line(aes(x = mileage, y = price_pred), color='yellowgreen', size=1.5)
+```
+**Figure 4** 
