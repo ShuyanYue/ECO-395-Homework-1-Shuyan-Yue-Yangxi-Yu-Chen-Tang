@@ -286,7 +286,7 @@ There are 19 artists in U.S. musical history since 1958 who have had at least 30
 
 Use the bar plot to show the 19 artists:
 
-![](Exercise-1-1_files/figure-markdown_strict/unnamed-chunk-38-1.png)
+![](figures/unnamed-chunk-38-1.png)
 
 <center><b>Figure 2<center><b>
 
@@ -323,13 +323,13 @@ Show the top 10 variability in competitor’s heights of women’s event:
 
 1.Show the trend of the average age of Olympic swimmers changed over time:
 
-![](Exercise-1-1_files/figure-markdown_strict/unnamed-chunk-43-1.png)
+![](figures/unnamed-chunk-43-1.png)
 
 <center><b>Figure 1: Trend for Total Swimmers<center><b>
 
 2.Show the trend of the average age of male swimmers and female swimmers changed over time:
 
-![](Exercise-1-1_files/figure-markdown_strict/unnamed-chunk-45-1.png)
+![](figures/unnamed-chunk-45-1.png)
 
 <center><b>Figure 2: Trend for Male and Female Swimmers<center><b>
 
@@ -360,7 +360,7 @@ Model across the train/test splits
 
 Plot means and standard errors across k
 
-![](Exercise-1-1_files/figure-markdown_strict/unnamed-chunk-52-1.png)
+![](figures/unnamed-chunk-52-1.png)
 
 
 
@@ -372,7 +372,7 @@ KNN with optimal k
 
 Attach the predictions to the data and add the predictions
 
-![](Exercise-1-1_files/figure-markdown_strict/unnamed-chunk-56-1.png)
+![](figures/unnamed-chunk-56-1.png)
 
 <center><b>Figure 2<center><b>
 
@@ -394,7 +394,7 @@ Model across the same train/test splits
 
 Plot means and standard errors versus k
 
-![](Exercise-1-1_files/figure-markdown_strict/unnamed-chunk-61-1.png)
+![](figures/unnamed-chunk-61-1.png)
 
 <center><b>Figure 3<center><b>
 
@@ -404,6 +404,6 @@ KNN with optimal k
 
 Attach the predictions to the data and add the predictions
 
-![](Exercise-1-1_files/figure-markdown_strict/unnamed-chunk-65-1.png)
+![](figures/unnamed-chunk-65-1.png)
 
 <center><b>Figure 4<center><b>
