@@ -85,7 +85,7 @@ Take a look at which day has the highest delay rate in the week:
     ## 6         6  5618      1769      0.315
     ## 7         7  6871      2442      0.355
 
-![](figures/unnamed-chunk-13-1.png)
+![](figures/unnamed-chunk-6-1.png)
 
 <center><b>Figure 2: The Departure Delay Rate in the Week<center><b>
 
@@ -117,7 +117,7 @@ Take a look at which airline has the highest delay rate in total:
     ## 15 XE             2296       762      0.332
     ## 16 YV             2455       514      0.209
 
-![](Exercise-1-1_files/figure-markdown_strict/unnamed-chunk-13-1.png)
+![](figures/unnamed-chunk-13-1.png)
 
 <center><b>Figure 3: The Total Delay Rate of Airlines<center><b>
 
@@ -145,7 +145,7 @@ Take a look at which day did the airline has the highest delay rate in the week:
     ## 10         1 OH              217        83      0.382
     ## # … with 102 more rows
 
-![](Exercise-1-1_files/figure-markdown_strict/unnamed-chunk-16-1.png)
+![](figures/unnamed-chunk-16-1.png)
 
 <center><b>Figure 4: The Delay Rate of Airlines in the Week<center><b>
 
@@ -161,7 +161,7 @@ Make the chart of average departure delay:
 
 Average departure delay
 
-![](Exercise-1-1_files/figure-markdown_strict/unnamed-chunk-18-1.png)
+![](figures/unnamed-chunk-18-1.png)
 
 <center><b>Figure 5<center><b>
 
@@ -169,7 +169,7 @@ From the bar plot, the departure delay rate and the average delay time is lowest
 
 Take a look at the departure delay hour in one day around the 10 airlines that have the most airplanes.
 
-![](Exercise-1-1_files/figure-markdown_strict/unnamed-chunk-20-1.png)
+![](figures/unnamed-chunk-20-1.png)
 
 <center><b>Figure 6<center><b>
 
@@ -181,13 +181,13 @@ In conclusion, the best departure time to optimize your flight plan from Austin-
 
 Find the best time of the day through arrival delay rate
 
-![](Exercise-1-1_files/figure-markdown_strict/unnamed-chunk-23-1.png)
+![](figures/unnamed-chunk-23-1.png)
 
 <center><b>Figure 7<center><b>
 
 From the bar plot,we can see that the arrival delay rate in the morning(5am-11pm) is relatively less, and even has the chance to take off early.
 
-![](Exercise-1-1_files/figure-markdown_strict/unnamed-chunk-25-1.png)
+![](figures/unnamed-chunk-25-1.png)
 
 <center><b>Figure 8<center><b>
 
@@ -195,13 +195,13 @@ From the bar plot, WN, with the most departing flight, the arrival delay rate at
 
 Take a look at the arrival delay rate of the popular airport in total:
 
-![](Exercise-1-1_files/figure-markdown_strict/unnamed-chunk-27-1.png)
+![](figures/unnamed-chunk-27-1.png)
 
 <center><b>Figure 9<center><b>
 
 From the bar plot, we can see that Des Moines Intl Airport (DSM) had the highest delay rate as the arrival airport in the whole year.
 
-![](Exercise-1-1_files/figure-markdown_strict/unnamed-chunk-29-1.png)
+![](figures/unnamed-chunk-29-1.png)
 
 <center><b>Figure 10<center><b>
 
@@ -255,7 +255,7 @@ Show the number of unique songs that appeared in the Billboard Top 100 on given 
 
 Use the line graph of unique songs to show the “musical diversity”
 
-![](Exercise-1-1_files/figure-markdown_strict/unnamed-chunk-33-1.png)
+![](figures/unnamed-chunk-33-1.png)
 
 <center><b>Figure 1<center><b>
 
