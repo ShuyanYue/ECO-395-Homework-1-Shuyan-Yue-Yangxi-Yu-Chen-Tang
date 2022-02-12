@@ -213,9 +213,7 @@ In conclusion, the best time of day to fly to minimize delays is the morning, an
 
 ## Part A
 
-Show the top 10 most popular songs since 1958:
-
-**Table 1**
+**Table 1 Show the top 10 most popular songs since 1958:**
 
     ## # A tibble: 10 × 3
     ## # Groups:   song [10]
@@ -255,7 +253,7 @@ Show the number of unique songs that appeared in the Billboard Top 100 on given 
 
 Use the line graph of unique songs to show the “musical diversity”
 
-![](figures/unnamed-chunk-33-1.png)
+![](figures/unnamed-chunk-66-1.png)
 
 <center><b>Figure 1<center><b>
 
@@ -286,7 +284,7 @@ There are 19 artists in U.S. musical history since 1958 who have had at least 30
 
 Use the bar plot to show the 19 artists:
 
-![](figures/unnamed-chunk-38-1.png)
+![](figures/unnamed-chunk-67-1.png)
 
 <center><b>Figure 2<center><b>
 
@@ -319,17 +317,19 @@ Show the top 10 variability in competitor’s heights of women’s event:
     ##  9 Cycling Women's Keirin                     7.76
     ## 10 Swimming Women's 400 metres Freestyle      7.62
 
+y ranking the variability in competitor's heights across the entire history of the Olympics, as measured by the standard deviation,  the Rowing Women’s Coxed Fours is the top1, with a standard deviation of 10.9.
+    
 ### Part C
 
 1.Show the trend of the average age of Olympic swimmers changed over time:
 
-![](figures/unnamed-chunk-43-1.png)
+![](figures/unnamed-chunk-68-1.png)
 
 <center><b>Figure 1: Trend for Total Swimmers<center><b>
 
 2.Show the trend of the average age of male swimmers and female swimmers changed over time:
 
-![](figures/unnamed-chunk-45-1.png)
+![](figures/unnamed-chunk-69-1.png)
 
 <center><b>Figure 2: Trend for Male and Female Swimmers<center><b>
 
