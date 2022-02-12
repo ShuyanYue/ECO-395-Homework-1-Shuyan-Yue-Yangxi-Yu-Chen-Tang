@@ -407,3 +407,7 @@ Attach the predictions to the data and add the predictions
 ![](figures/unnamed-chunk-65-1.png)
 
 <center><b>Figure 4<center><b>
+
+### 3. Compare between 350 and 65AMG trim level
+    
+From the results above, it is concluded that the optimal K of trim 350 is slightly higher than that of trim 65 AMG. It’s reasonable because for the analysis of trim 350, we have 416 observations, the sample size is much bigger, while the sample size of trim 65AMG is only 292.  A larger sample size may capture more points to precisely predict and have lower variance to generate a smooth fit, also it may more likely to bias the prediction. Likewise, by eyeballing the fitting plot of the optimal k of two trim levels, the data in Trim 350 is slightly less wiggled and more biased. which means the optimal k is slightly larger.
