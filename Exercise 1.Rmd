@@ -381,9 +381,7 @@ In conclusion, the best time of day to fly to minimize delays is the morning, an
 
 ## Part A
 
-Show the top 10 most popular songs since 1958:
-
-**Table 1**
+**Table 1：Show the top 10 most popular songs since 1958**
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 billboard = read.csv("~/Downloads/billboard.csv")
 top10_songs = billboard %>%
@@ -418,7 +416,7 @@ Use the line graph of unique songs to show the "musical diversity"
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 ggplot(unique) +
 geom_line(aes(x=year, y=count)) +
-labs(title="Musical Diversity over Year", x="Year", y="the Number of Unique Songs")
+labs(title="Musical Diversity over Year", x="Year", y="the Number of Unique Songs", caption="We can see there is a sharply decrease in musical diversity of the Billboard top 100 from around 1965 through 2000. Then, the trend reverse, excluding years around 2010.")
 ```
 **Figure 1**
 
@@ -457,7 +455,7 @@ Use the bar plot to show the 19 artists:
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 ggplot(tenweek_hit_30, aes(count, fct_reorder(performer,count)))+
 geom_col() +
-labs(title="Ten-week hit", y="Performer", x="the Number of Songs")
+labs(title="Ten-week hit", y="Performer", x="the Number of Songs", caption="The bar plot above vividly illustrates 19 artists in U.S. musical history releasing more than 30 “ten-week-hit” songs in billborad.")
 ```
 **Figure 2**
 
@@ -490,6 +488,7 @@ summarize(sd_height = sd(height)) %>%
 arrange(desc(sd_height)) %>%
 head(10)
 ```
+By ranking the variability in competitor's heights across the entire history of the Olympics, as measured by the standard deviation,  the Rowing Women’s Coxed Fours is the top1, with a standard deviation of 10.9.
 
 ### Part C
 
@@ -506,7 +505,7 @@ summarize(avg_age = mean(age))
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 ggplot(trend_age_swimming_total) +
 geom_line(aes(x=year, y=avg_age)) +
-labs(x = "Years", y = "Average Age", title = "The Trend of Age of Swimmers")
+labs(x = "Years", y = "Average Age", title = "The Trend of Age of Swimmers", caption="The average age of Olympics medalist for swimming was not over than 20 until 1975. The age of medalist gradually increase since 1975, up to about22.")
 ```
 **Figure 1:** Trend for Total Swimmers
 
@@ -523,7 +522,7 @@ summarize(avg_age = mean(age))
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 ggplot(trend_age_swimming) +
 geom_line(aes(x=year, y=avg_age, color=sex)) +
-labs(x = "Years", y = "Average Age", title = "The Trend of Age of Swimmers - Male and Female")
+labs(x = "Years", y = "Average Age", title = "The Trend of Age of Swimmers - Male and Female", caption="The trend for female looks basically the same, except that  the first time female swimmers shown up is 25 years later than male swimmers")
 ```
 **Figure 2:** Trend for Male and Female Swimmers
 
