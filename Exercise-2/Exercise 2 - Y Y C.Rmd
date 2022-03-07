@@ -1,0 +1,636 @@
+---
+title: 'Data Mining - Exercise 2'
+author: "Yangxi Yu & Chen Tang & Shuyan Yue"
+date: "3/3/2022"
+output: md_document
+---
+
+
+## Problem 1: Visualization
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(forecast)
+capmetro_UT=read.csv("~/Downloads/capmetro_UT.csv")
+```
+
+(1) Show average boardings grouped by hour of the day, day of week, and month:
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+capmetro_UT = mutate(capmetro_UT,
+               day_of_week = factor(day_of_week,
+                 levels=c("Mon", "Tue", "Wed","Thu", "Fri", "Sat", "Sun")),
+               month = factor(month,
+                 levels=c("Sep", "Oct","Nov")))
+
+capmetro_UT_line=capmetro_UT%>%
+            group_by(hour_of_day,day_of_week,month)%>%
+            summarize(boarding=mean(boarding))
+
+ggplot(capmetro_UT_line) +
+geom_line(aes(x=hour_of_day, y=boarding, color=month))+
+facet_wrap(~day_of_week)+
+labs(x="Hour of Day", y="Boarding", title="Average Boardings Grouped by Hour, Week and Month", caption="1. The plot shows average boardings grouped by hour of the day, day of week, and month from September through November 2018. \n2. Except for weekends, the hour of peak boardings was broadly similar across days, between 15-17pm. \n3. The first Monday in Sepetember is Labor Day, the boarding on that day would be lower. So the average boardings on Mondays in September look lower. \n4. 11/1/2018 is Halloween (Thursday),11/29/2018 is Thanksgiving (Thursday), people may had rest on 11.1, 11.2, 11.28, 11.29, 11.30 and the boarding would be lower. So the average boardings on Weds/Thurs/Fri in November look lower.")+
+theme_update(plot.caption = element_text(hjust = 0),plot.title = element_text(hjust = 0.5))
+```
+
+**Figure 1:** Average Boardings
+
+(2) Show the relation between boardings and temperature:
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+capmetro_UT_scatter = capmetro_UT %>%
+group_by(temperature, hour_of_day, weekend) %>%
+summarize(boarding=mean(boarding))
+
+ggplot(capmetro_UT_scatter) +
+geom_point(aes(x=temperature, y=boarding, color=weekend), alpha=0.7, size=1.5)+
+facet_wrap(~hour_of_day)+
+labs("Tempearutre", y="Boarding", title="Relation between Boardings and Temperature", caption="1. The plot shows the relation between boardings and temperature to see whether temperature have a noticeable effect on boarding of UT students \n2. When holding hour of day and weekends status constant,temperature seem not to have a noticeable effect on the number of UT students riding the bus. Because the points does not exhibit a significant slope")+
+theme_update(plot.caption = element_text(hjust = 0),plot.title = element_text(hjust = 0.5))
+```
+
+**Figure 2:** Relation between Boardings and Temperature
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Problem 2: Saratoga House Prices
+In this problem, we are going to choose the best model whose performance is better than the medium (baseline)model in predicting Saratoga house prices. 
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(mosaic)
+library(foreach)
+library(tidyverse)
+library(class)
+library(FNN)
+library(dplyr)
+library(knitr)
+library(kableExtra)
+library(data.table)
+library(MatrixModels)
+library(sjPlot)
+data(SaratogaHouses,header=TRUE)
+
+```
+
+*Medium Model:* price ~ lotSize + age + livingArea + pctCollege + bedrooms + fireplaces+bathrooms + rooms + heating + fuel + centralAir
+
+(1) The Best Linear Model
+
+Use forward selection method and stepwise selection to automatically select a model with the lowest AIC
+
+``` {r echo=FALSE, message=FALSE, warning=FALSE}
+x=matrix(c("Baseline Model 1 (Medium Model)", 
+           "price = lotSize + age + livingArea + pctCollege + bedrooms + fireplaces+bathrooms + rooms + heating + fuel + centralAir", 
+           "Best Model 1 (Forward Selected Model)",
+           "price = livingArea + centralAir + bathrooms + bedrooms + fuel + lotSize + rooms + pctCollege + livingArea:centralAir + livingArea:fuel + centralAir:fuel + centralAir:bedrooms + centralAir:bathrooms + fuel:lotSize + bedrooms:fuel + centralAir:rooms + fuel:pctCollege + livingArea:rooms + livingArea:bedroomsr",
+           "Best Model 2 (Stepwise Selected Model",
+           "price = lotSize + age + livingArea + pctCollege + bedrooms + fireplaces + bathrooms + rooms + heating + fuel + centralAir + livingArea:centralAir + age:pctCollege + livingArea:fuel + age:fuel + bedrooms:centralAir + pctCollege:fireplaces + pctCollege:bathrooms + fuel:centralAir + livingArea:rooms + livingArea:bedrooms + pctCollege:fuel + lotSize:fireplaces + age:heating + lotSize:bedrooms + rooms:heating + rooms:fuel + bathrooms:centralAir + livingArea:fireplaces + bedrooms:fireplaces + fireplaces:centralAir + lotSize:livingArea")
+, nrow=6, ncol=1)
+kable(x, caption="**Table 2.1 : Compare the models between Forward Selected Model, Setpwise Selected Model and Medium Model, without landValue**")%>%
+  kable_styling(position="center", full_width = NULL)
+```
+``` {r echo=FALSE, message=FALSE, warning=FALSE}
+x=matrix(c("Baseline Model 2  (Medium Model with LandVaule)", 
+           "price = landValue + lotSize + age + livingArea + pctCollege + bedrooms + fireplaces+bathrooms + rooms + heating + fuel + centralAir", 
+           "Best Model 3 (Forward Selected Model)",
+           "price = livingArea + landValue + bathrooms + centralAir + 
+    lotSize + bedrooms + rooms + livingArea:centralAir + livingArea:landValue + 
+    livingArea:bathrooms + livingArea:lotSize + centralAir:bedrooms + 
+    centralAir:lotSize + landValue:lotSize + bathrooms:lotSize + 
+    centralAir:rooms",
+           "Best Model 4 (Stepwise Selected Model",
+           "price = andValue + lotSize + age + livingArea + 
+    pctCollege + bedrooms + fireplaces + bathrooms + rooms + 
+    heating + fuel + centralAir + landValue:age + livingArea:centralAir + 
+    livingArea:fuel + fuel:centralAir + landValue:lotSize + livingArea:fireplaces + 
+    landValue:fireplaces + age:centralAir + landValue:bathrooms + 
+    landValue:bedrooms + landValue:pctCollege + pctCollege:fireplaces + 
+    landValue:livingArea + age:bedrooms + lotSize:age + bedrooms:fireplaces + 
+    pctCollege:bedrooms + lotSize:fuel + lotSize:bathrooms + 
+    rooms:heating + livingArea:bedrooms")
+, nrow=6, ncol=1)
+kable(x, caption="**Table 2.2 : Compare the models between Forward Selected Model, Setpwise Selected Model and Medium Model, with landVaule**")%>%
+  kable_styling(position="center", full_width = NULL)
+```
+
+These six models are measured by the average out-of-sample RMSE.  We average the performance of six models over 100 train/test splits by getting out-of-sample RMSE of each model. The following table shows average RMSE of six models:
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+set.seed(1)
+LoopRMSE = do(100)*{
+    n = nrow(SaratogaHouses)
+    n_train = round(0.8*n)  # round to nearest integer
+    n_test = n - n_train
+    train_cases = sample.int(n, n_train, replace=FALSE)
+    test_cases = setdiff(1:n, train_cases) 
+    saratoga_train = SaratogaHouses[train_cases,]
+    saratoga_test = SaratogaHouses[test_cases,]
+    
+    lm_medium1 = lm(price ~ lotSize + age + livingArea + pctCollege + bedrooms + 
+                     fireplaces + bathrooms + rooms + heating + fuel + centralAir,
+                    data=saratoga_train)
+    
+     lm0 = lm(price ~ 1, data=saratoga_train)
+     lm_best_forward = step(lm0, direction='forward',
+ 	                 scope=~(lotSize + age + livingArea + pctCollege + bedrooms + 
+ 	                  fireplaces + bathrooms + rooms + heating + fuel + centralAir)^2)
+     lm_best_stepwise = step(lm_medium1, 
+ 			scope=~(.)^2)
+    
+       getCall(lm_best_forward)
+       getCall(lm_best_stepwise)
+    
+  # Result of forward and stepwise models (without landvalue):
+     
+  # lm_best_forward = lm (price ~ livingArea + centralAir + bathrooms + bedrooms + fuel + lotSize +
+  #                         rooms + pctCollege + livingArea:centralAir + livingArea:fuel +
+  #                         centralAir:fuel + centralAir:bedrooms + centralAir:bathrooms +
+  #                         fuel:lotSize + bedrooms:fuel + centralAir:rooms + fuel:pctCollege +
+  #                         livingArea:rooms + livingArea:bedrooms, data = saratoga_train)
+  # 
+  # lm_best_stepwise = lm (price ~ lotSize + age + livingArea + pctCollege + bedrooms + fireplaces +
+  #                          bathrooms + rooms + heating + fuel + centralAir + livingArea:centralAir
+  #                        + age:pctCollege + livingArea:fuel + age:fuel + bedrooms:centralAir +
+  #                          pctCollege:fireplaces + pctCollege:bathrooms + fuel:centralAir +
+  #                          livingArea:rooms + livingArea:bedrooms + pctCollege:fuel +
+  #                          lotSize:fireplaces + age:heating + lotSize:bedrooms + rooms:heating +
+  #                          rooms:fuel + bathrooms:centralAir + livingArea:fireplaces +
+  #                          bedrooms:fireplaces + fireplaces:centralAir + lotSize:livingArea, 
+  #                        data = saratoga_train)
+  
+    
+    yhat_test_medium1 = predict(lm_medium1, saratoga_test)
+    yhat_test_forward = predict(lm_best_forward, saratoga_test)
+    yhat_test_stepwise = predict(lm_best_stepwise, saratoga_test)
+
+    
+    lm_medium2 = lm(price ~ landValue + lotSize + age + livingArea + pctCollege + bedrooms + 
+                     fireplaces + bathrooms + rooms + heating + fuel + centralAir, data=saratoga_train)
+    
+     lm_best_forward_landValue = step(lm0, direction='forward',
+                     scope=~(landValue + lotSize + age + livingArea + pctCollege + bedrooms +
+                     fireplaces + bathrooms + rooms + heating + fuel + centralAir)^2)
+     lm_best_stewisep_landValue = step(lm_medium2,
+                     scope=~(.)^2)
+
+     getCall(lm_best_forward_landValue)
+     getCall(lm_best_stepwise_landValue)
+
+  # Result of forward and stepwise models (with landvalue):
+    
+  # lm_best_forward_landValue = lm (price ~ livingArea + landValue + bathrooms + centralAir + 
+  #   lotSize + bedrooms + rooms + livingArea:centralAir + livingArea:landValue + 
+  #   livingArea:bathrooms + livingArea:lotSize + centralAir:bedrooms + 
+  #   centralAir:lotSize + landValue:lotSize + bathrooms:lotSize + 
+  #   centralAir:rooms, data = saratoga_train)
+  # 
+  # lm_best_stepwise_landValue = lm (price ~ landValue + lotSize + age + livingArea + 
+  #   pctCollege + bedrooms + fireplaces + bathrooms + rooms + 
+  #   heating + fuel + centralAir + landValue:age + livingArea:centralAir + 
+  #   livingArea:fuel + fuel:centralAir + landValue:lotSize + livingArea:fireplaces + 
+  #   landValue:fireplaces + age:centralAir + landValue:bathrooms + 
+  #   landValue:bedrooms + landValue:pctCollege + pctCollege:fireplaces + 
+  #   landValue:livingArea + age:bedrooms + lotSize:age + bedrooms:fireplaces + 
+  #   pctCollege:bedrooms + lotSize:fuel + lotSize:bathrooms + 
+  #   rooms:heating + livingArea:bedrooms, data = saratoga_train)
+    
+    yhat_test_medium2 = predict(lm_medium2, saratoga_test)
+    yhat_test_forward_landValue = predict(lm_best_forward_landValue, saratoga_test)
+    yhat_test_stepwise_landValue = predict(lm_best_stepwise_landValue, saratoga_test)
+  
+    rmse = function(y, yhat) {
+  sqrt( mean( (y - yhat)^2 ) )}
+
+    c(RmseMedium1=rmse(saratoga_test$price, yhat_test_medium1), 
+      RmseForward = rmse(saratoga_test$price, yhat_test_forward),
+      RmseStepwise = rmse(saratoga_test$price, yhat_test_stepwise),
+      RmseMedium2=rmse(saratoga_test$price, yhat_test_medium2), 
+      RmseForward_landValue = rmse(saratoga_test$price, yhat_test_forward_landValue),
+      RmseStepwise_landValue = rmse(saratoga_test$price, yhat_test_stepwise_landValue)) 
+  }
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+RMSEMean = rbind("Baseline Model 1" = mean(LoopRMSE$RmseMedium1), 
+                      "Forward Model" = mean(LoopRMSE$RmseForward),
+                      "Stepwise Model" = mean(LoopRMSE$RmseStepwise),
+                       "Baseline Model 2" = mean(LoopRMSE$RmseMedium2), 
+                      "Forward_Model_landValue" = mean(LoopRMSE$RmseForward_landValue),
+                      "Stepwise_Model_landValue" = mean(LoopRMSE$RmseStepwise_landValue))
+
+kable(RMSEMean, caption="**Table 2.3 : RMSE for Price Models**")%>%
+  kable_styling(full_width = FALSE)%>%
+  column_spec(1, width = "10em")
+```
+
+
+According to the table, Stepwise_Model_landValue has the lower out-of -sample mean-squared error, which is 59623.12, and the average RMSE of the baseline model 1 is around 66503.29.So the Stepwise_Model_landValue	makes an improvement. The regression result is:
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+tab_model(lm_best_stepwise_landValue, transform = NULL, dv.labels = 
+            c( "Stepwise_Model_landValue "), string.est = "Coefficients", show.ci=0.95, title = "**Table 2.4 #Coefficients of House Value Models**",  show.obs= FALSE, show.r2= FALSE)
+```
+
+From the regression, we can conclude price-modeling strategies for a local taxing authority.
+
+Firstly, the land value is the most significant factor of predicting house price because when adding this factor the RMSE dropped sharply. The higher the land value,the higher the house price.
+
+Secondly, the lot size, bedrooms, fireplaces, heating , fuel, central air also affect the house price mostly. If there’s no central air and more bedrooms, the house price will decrease. In addition, the larger the lot size,the higher the house price. Also, the availability of fireplaces also has a significant impact on home prices. Heating is important, no matter the type of heating. And comparing fuel with electric, fuel with oil will increase the house price. Thirdly, the interaction between the type of fuel and central air is important. If without centrl air, fuel with electric will increase price comparing to the fuel with oil. And people tend to choose the bedrooms with fireplaces. 
+
+2. Build the best K-nearest-neighbor regression model for price
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+set.seed(1)
+X_ = subset(SaratogaHouses, select=c(-price,-sewer,-waterfront,-newConstruction,-heating,-fuel,-centralAir))
+Y_ = subset(SaratogaHouses, select=c(price))
+
+LoopKNN =do(150)*{
+    k_grid = seq(1,50, by=1)
+    # re-split into train and test cases
+    n = nrow(SaratogaHouses)
+    n_train = round(0.8*n) 
+    n_test = n - n_train
+    train_cases = sample.int(n, n_train, replace=FALSE)
+    test_cases = setdiff(1:n, train_cases)
+  
+    Xtrain = X_[train_cases,]
+    Xtest = X_[test_cases,]
+    Ytrain =Y_[train_cases,]
+    Ytest = Y_[test_cases,]
+   Xtrain
+    scale_=apply(Xtrain, 2, sd)
+    Xtrain_scale = scale(Xtrain, scale=scale_)
+    Xtest_scale = scale(Xtest, scale=scale_)
+    out=c()
+    for(k in k_grid){
+    knn_=FNN::knn.reg(Xtrain_scale, Xtest_scale, Ytrain, k=k)
+    out=c(out, rmse(Ytest, knn_$pred))
+  }
+  out
+}
+LoopKNN =  LoopKNN %>% colMeans() %>% as.data.frame()
+colnames(LoopKNN) <- c("RMSE")
+
+ggplot(data = LoopKNN, aes(x = c(1:50), y = RMSE)) + 
+  geom_point(shape = "0") +
+  geom_line(col = "blue")+
+  theme_bw()+
+  geom_vline(xintercept = c(1:50)[which.min(LoopKNN$RMSE)],name="min_RMSE",color="orange")+
+  labs(title = "Average RMSE of K values for the Model",
+       x = "K",
+       y = "RMSE")+
+  theme(plot.title = element_text(hjust = 0.5))
+```
+Across all 20 folds of the val set, from the plot above, we can see that the min average RMSE getting from KNN model is about 62000 with optimal K, which is about 7-9. The RMSE from KNN model is higher than the lowest RMSE from linear model that we talk above.
+
+Thus, linear model does better at achieving lower out-of-sample mean-squared error.
+
+## Problem 3: Classification and Retrospective Sampling
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(ggplot2)
+german_credit=read.csv("~/Downloads/german_credit.csv")
+```
+
+(1) Bar plot of default probability by credit history
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+german_credit_history = german_credit %>%
+group_by(history) %>%
+summarize(Default = mean(Default))
+
+ggplot(german_credit_history)+
+geom_bar(aes(x=history,y=Default),stat="identity",fill="#A6CEE3FF")+
+labs(x="Credit History",y="Default Probability",title="Relation between Default Probability and Credit History")+
+theme_update(plot.title = element_text(hjust = 0.5))
+```
+
+(2) Build a logistic regression model for predicting default probability
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(kableExtra)
+german_credit_glm=glm(Default ~ duration + amount + installment + age + history + purpose + foreign, data=german_credit, family = "binomial" )
+
+german_credit_glm
+```
+
+From the bar plot and logistic regression model, we could see that the default probability is high for those with good credit history and low for those with terrible credit history, which is contrary to our perceptions, so this data set may not be a good source to set a predicting model.
+
+Because this data was collected in a retrospective way, the defaults rare, and the bank sampled a set of loans that had defaulted for inclusion in the study, which resulted in a substantial oversampling of defaults, relative to a random sample of loans in the bank's overall portfolio. Some set of loans don't default so they are considered as low default group, whose default rate was underrepresented. 
+
+For bank's sampling scheme, we suggest that we use bootstrap when selecting sample.
+
+## Problem 4: Children and Hotel Reservations
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(modelr)
+library(rsample)
+library(mosaic)
+library(caret)
+library(foreach)
+
+
+## import data
+hotels_dev=read.csv("~/Downloads/hotels_dev.csv")
+hotels_val = read.csv('~/Downloads/hotels_val.csv')
+#split the data
+hotels_dev_split=initial_split(hotels_dev, prop=0.8)
+hotels_dev_train=training(hotels_dev_split)
+hotels_dev_test=testing(hotels_dev_split)
+```
+
+1. Model Building
+
+We will use TPR & FPR and deviance to check performance for the following models.
+
+For baseline 1,  this small model uses only the market_segment, adults, customer_type, and is_repeated_guest variables as features. 
+
+For baseline 2,  this big model uses all the possible predictors except the arrival_date variable (main effects only) as features. 
+
+For our own model, we use forward selection and stepwise selection to find best linear model. For forward model, we choose adults, meal, market_segemnt,etc., a total of 11 features as main effect.
+
+```{r echo=FALSE, results='hide',message=FALSE, warning=FALSE}
+# set.rseed(1)
+#baseline1:lm1
+lm1=lm(children ~ market_segment + adults + customer_type + is_repeated_guest, data=hotels_dev_train)
+
+
+#baseline2:lm2
+lm2=lm(children ~ .-arrival_date, data=hotels_dev_train)
+
+#lm_your_find_best
+lm0=lm(children ~ 1, data=hotels_dev_train)
+
+
+lm_forward = step(lm0, direction='forward',
+         scope=~(hotel+stays_in_week_nights+adults+meal+market_segment+is_repeated_guest+previous_cancellations+
+                 previous_bookings_not_canceled+reserved_room_type+assigned_room_type+
+                  required_car_parking_spaces+total_of_special_requests)^2)
+
+ lm_step = step(lm1,scope=~(. -arrival_date)^2)
+
+ getCall(lm_forward)
+ getCall(lm_step)
+
+ # Results of forward and stepwise models:
+ # lm_forward = lm(formula = children ~ reserved_room_type + total_of_special_requests + 
+ #    assigned_room_type + hotel + market_segment + meal + adults + 
+ #    is_repeated_guest + required_car_parking_spaces + reserved_room_type:assigned_room_type + 
+ #    reserved_room_type:hotel + reserved_room_type:market_segment + 
+ #    assigned_room_type:hotel + total_of_special_requests:meal + 
+ #    hotel:market_segment + reserved_room_type:meal + market_segment:meal + 
+ #    reserved_room_type:adults + assigned_room_type:market_segment + 
+ #    market_segment:adults + reserved_room_type:is_repeated_guest + 
+ #    total_of_special_requests:is_repeated_guest + total_of_special_requests:assigned_room_type + 
+ #    total_of_special_requests:market_segment + assigned_room_type:meal + 
+ #    total_of_special_requests:adults + meal:adults + reserved_room_type:total_of_special_requests + 
+ #    hotel:required_car_parking_spaces + meal:required_car_parking_spaces + 
+ #    reserved_room_type:required_car_parking_spaces + total_of_special_requests:required_car_parking_spaces + 
+ #    market_segment:required_car_parking_spaces + total_of_special_requests:hotel + 
+ #    meal:is_repeated_guest + hotel:adults, data = hotels_dev_train)
+ # 
+ # 
+ # lm_step = lm(formula = children ~ market_segment + adults + customer_type + 
+ #    is_repeated_guest + market_segment:adults + adults:customer_type + 
+ #    market_segment:customer_type + market_segment:is_repeated_guest, 
+ #    data = hotels_dev_train)
+
+##measure out-of-sample performance
+
+
+#compare the predict result
+phat_lm1 <- predict(lm1, hotels_dev_test, type='response')
+phat_lm2 <- predict(lm2, hotels_dev_test, type='response')
+phat_forward <- predict(lm_forward, hotels_dev_test, type='response')
+phat_step <- predict(lm_step, hotels_dev_test, type='response')
+
+###set the dataset for three model(lm1,lm2,lm_forward)
+##measure using FPR, TPR 
+#lm_step
+thresh_grid = seq(0, 0.20, by=0.005)
+roc_step = foreach(thresh = thresh_grid, .combine='rbind') %do% {
+yhat_step = ifelse(phat_step >= thresh, 1, 0)
+confusion_out_step = table(y = hotels_dev_test$children, yhat = yhat_step)
+out_lin = data.frame(model = "step",
+                     t=thresh,
+                     TPR = confusion_out_step[2,2]/sum(hotels_dev_test$children==1),
+                     FPR = confusion_out_step[1,2]/sum(hotels_dev_test$children==0))
+  rbind(out_lin)
+} %>% as.data.frame()
+
+
+#lm_forward
+thresh_grid = seq(0.05, 0.90, by=0.005)
+roc_forward = foreach(thresh = thresh_grid, .combine='rbind') %do% {
+yhat_forward = ifelse(phat_forward >= thresh, 1, 0)
+confusion_out_linear = table(y = hotels_dev_test$children, yhat = yhat_forward)
+out_lin = data.frame(model = "forward",
+                     t=thresh,
+                     TPR = confusion_out_linear[2,2]/sum(hotels_dev_test$children==1),
+                     FPR = confusion_out_linear[1,2]/sum(hotels_dev_test$children==0))
+  rbind(out_lin)
+} %>% as.data.frame()
+
+
+#lm1
+thresh_grid = seq(0, 0.15, by=0.005)
+roc_lm1 = foreach(thresh = thresh_grid, .combine='rbind') %do% {
+yhat_lm1 <-ifelse(phat_lm1 >= thresh, 1, 0)
+confusion_out_1 = table(y = hotels_dev_test$children, yhat = yhat_lm1)
+out_lin = data.frame(model = "lm1",
+                     t=thresh,
+                     TPR = confusion_out_1[2,2]/sum(hotels_dev_test$children==1),
+                     FPR = confusion_out_1[1,2]/sum(hotels_dev_test$children==0))
+                     rbind(out_lin)
+} %>% as.data.frame()
+
+#lm2
+thresh_grid = seq(0.05, 0.90, by=0.005)
+roc_lm2 = foreach(thresh = thresh_grid, .combine='rbind') %do% {
+yhat_lm2 <-ifelse(phat_lm2>= thresh, 1, 0)
+confusion_out_2 = table(y = hotels_dev_test$children, yhat = yhat_lm2)
+out_lin = data.frame(model = "lm2",
+                     t=thresh,
+                     TPR = confusion_out_2[2,2]/sum(hotels_dev_test$children==1),
+                     FPR = confusion_out_2[1,2]/sum(hotels_dev_test$children==0))
+                     rbind(out_lin)
+} %>% as.data.frame()
+```
+
+(1) Using TPR and FPR to check the performances for four models
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#measuring 4 models in FRP,TPR
+ggplot()+
+geom_line(aes(x=FPR, y=TPR, color=model),data=roc_lm1)+
+geom_line(aes(x=FPR, y=TPR, color=model),data=roc_lm2) + 
+geom_line(aes(x=FPR, y=TPR, color=model),data=roc_forward)+
+geom_line(aes(x=FPR, y=TPR, color=model),data=roc_step)+
+labs(title="ROC Curves: The Best Model")  +
+theme_bw(base_size = 10)+
+xlim(0, 1)
+```
+
+From the ROC curve, we can see that the forward model is better off because the whole line relatively closes to the left corner.
+
+(2) Compare four models in deviance 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(dplyr)
+library(kableExtra)
+#compare four models in deviance      
+dev_lm2<-deviance(lm2,hotels_dev_test)     
+dev_lm1<-deviance(lm1,hotels_dev_test)              
+dev_forward<-deviance(lm_forward, hotels_dev_test)
+dev_step<-deviance(lm_step, hotels_dev_test)
+deviance_result<-data.frame(
+model=c('lm1','lm2','lm_forward','lm_step'),
+deviance=c(
+dev_lm1,
+dev_lm2,
+dev_forward,
+dev_step)
+)
+kable(deviance_result)
+```
+
+From the table above, we can see that the forward model has the lowest deviance, which is 1712.442.
+
+In conclusion. the forward model performs best out of sample.
+
+Forward Model:
+
+children = reserved_room_type + total_of_special_requests + assigned_room_type + hotel + market_segment + meal + adults + is_repeated_guest + required_car_parking_spaces + reserved_room_type:assigned_room_type + reserved_room_type:hotel + reserved_room_type:market_segment + assigned_room_type:hotel + total_of_special_requests:meal + hotel:market_segment + reserved_room_type:meal + market_segment:meal + reserved_room_type:adults + assigned_room_type:market_segment + market_segment:adults + reserved_room_type:is_repeated_guest + total_of_special_requests:is_repeated_guest + total_of_special_requests:assigned_room_type + total_of_special_requests:market_segment + assigned_room_type:meal + total_of_special_requests:adults + meal:adults + reserved_room_type:total_of_special_requests + hotel:required_car_parking_spaces + meal:required_car_parking_spaces + reserved_room_type:required_car_parking_spaces + total_of_special_requests:required_car_parking_spaces + market_segment:required_car_parking_spaces + total_of_special_requests:hotel + meal:is_repeated_guest + hotel:adults
+
+
+2. Model Validation: Step 1
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+phat_forward_val <- predict(lm_forward, hotels_val, type='response')
+thresh_grid = seq(0.05, 0.90, by=0.005)
+roc_forward_val = foreach(thresh = thresh_grid, .combine='rbind') %do% {
+yhat_forward_val = ifelse(phat_forward_val >= thresh, 1, 0)
+confusion_out_linear = table(y = hotels_val$children, yhat = yhat_forward_val)
+out_lin = data.frame(model = "forward",
+                     t=thresh,
+                     TPR = confusion_out_linear[2,2]/sum(hotels_val$children==1),
+                     FPR = confusion_out_linear[1,2]/sum(hotels_val$children==0))
+  rbind(out_lin)
+} %>% as.data.frame()
+```
+
+ROC curve:
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+##ROC curve
+ggplot() +
+geom_line(aes(x=FPR, y=TPR, color=model),data=roc_forward_val)+
+labs(y="TPR", x = "FPR", color=" model",title="ROC for lm_forward")+
+theme_bw(base_size = 10)+
+  xlim(0, 0.45)
+```
+
+Find the optimal threshold t:
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot() +
+geom_line(aes(x=t, y=TPR, color=model),data=roc_forward_val)+
+labs(y="TPR", x = "t", color=" model",title="TPR among Threshold")+
+theme_bw(base_size = 10)+
+  xlim(0, 1)
+```  
+
+Find feasible best t:
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(pROC)
+modelroc <- roc(hotels_val$children,phat_forward_val)
+plot(modelroc, print.auc=TRUE, auc.polygon=TRUE, grid=c(0.1, 0.2),
+     grid.col=c("green", "red"), max.auc.polygon=TRUE,
+     auc.polygon.col="skyblue", print.thres=TRUE)
+```
+
+3. Model Validation: Step 2
+
+The following shows the actual and predicting of the total number of bookings with children in a group of 250 bookings. It also shows the difference between these two. By looking at the difference, we think the model does good because the predict numbers are close to the real.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+N=nrow(hotels_val)
+K=20
+fold_id = rep_len(1:K, N)
+
+accuracy<-rep(0,K)
+predict<-rep(0,K)
+actual<-rep(0,K)
+diff<-rep(0,K)
+fold<-rep(0,K)
+result=for (i in 1:K){
+  fold_set=which(fold_id==i)
+  hotels.val_fold<-hotels_val[fold_set,]
+  phat_hotel=predict(lm_forward,hotels.val_fold,type="response")
+## sum up probability to predict(key step)
+  exp_child=sum(phat_hotel)%>%round(0)
+  fold[i]<-c(i)
+  predict[i]<-exp_child
+  actual[i]<-c(sum(hotels.val_fold$children==1))
+  diff[i]<-c(sum(hotels.val_fold$children==1)-exp_child)
+  accuracy[i]=(1-abs(exp_child-c(sum(hotels.val_fold$children==1))
+                )/exp_child)%>%round(2)
+}
+```
+
+
+Visualize the actual and predicting of the total number of bookings with children, and also the the difference between them:
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot()+
+geom_line(aes(x=fold, y=actual,color="actual"),size=1.5,linetype=4,data=result)+
+geom_line(aes(x=fold, y=predict,color="predict"),size=1.5,data=result)+
+geom_ribbon(aes(x=fold,ymin = predict, ymax = actual), fill = "grey")+
+labs(y="Actual/Predict/Diff", x = "Fold",title="The Predicted and Actual Children",caption="The shadow area is the gap")+
+theme(plot.title=element_text(hjust=0.5))
+```
+
+Show the accuracy in different folds:
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot()+
+geom_line(aes(x=fold, y=accuracy,color="accuracy"),data=result)+
+geom_point(size=4)+
+geom_line(aes(x=fold,y=mean(accuracy),color="avg"),linetype=3,data=result)+
+labs(y="Accuracy Rate", x = "Fold",title="Accuracy among 20 Folds",caption="Accuracy=|actual-predict|/predict")+
+theme(plot.title=element_text(hjust=0.5))
+```
+
+Show the detail of actual and predicting of the total number of bookings with children, and their difference in each fold:
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(dplyr)
+library(kableExtra)
+
+expectation_predict_result <- data.frame (
+  fold = fold,
+  predict = predict,
+  actual=actual,
+  diff = diff,
+  accuracy=accuracy
+)
+
+kable(expectation_predict_result)
+```
+
+Show the accuracy of prediction:
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+mean(accuracy)
+```
+
+In conclusion, he performance of forward model for prediction is outstanding, which holds 86.45% rate of accuracy.
+
