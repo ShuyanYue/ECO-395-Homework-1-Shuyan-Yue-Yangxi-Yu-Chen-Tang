@@ -1,0 +1,473 @@
+---
+title: "Exercise 4"
+author: "Chen & Yangxi & Shuyan"
+date: "4/327/2022"
+output: md_document
+always_allow_html: true
+---
+# Clustering and PCA
+
+## Overview
+The goal of this problem is to figure out whether unsupervised learning methods such as clustering and PCA can different the red wine and the white wine, also distinguish the higher from the lower quality wine.
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+wine <- read.csv("~/Desktop/ECO395M-master/data/wine.csv")
+library(tidyverse)
+library(LICORS)  # for kmeans++
+library(foreach)
+library(mosaic)
+library(factoextra)
+library(grid)
+library(gridExtra)
+```
+## Red Vs White Wine
+Firstly, we want to see which chemical properties has significant distinction between white and red wine.
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+p1 <- qplot(x = color, y = fixed.acidity, data = wine, geom = "boxplot")
+p2 <- qplot(x = color, y = volatile.acidity, data = wine, geom = "boxplot")
+p3 <- qplot(x = color, y = citric.acid, data = wine, geom = "boxplot")
+p4 <- qplot(x = color, y = residual.sugar, data = wine, geom = "boxplot")
+p5 <- qplot(x = color, y = chlorides, data = wine, geom = "boxplot")
+p6 <- qplot(x = color, y = free.sulfur.dioxide, data = wine, geom = "boxplot")
+p7 <- qplot(x = color, y = total.sulfur.dioxide, data = wine, geom = "boxplot")
+p8 <- qplot(x = color, y = density, data = wine, geom = "boxplot")
+p9 <- qplot(x = color, y = pH, data = wine, geom = "boxplot")
+p10 <- qplot(x = color, y = sulphates, data = wine, geom = "boxplot")
+p11 <- qplot(x = color, y = alcohol, data = wine, geom = "boxplot")
+p12 <- qplot(x = color, y = quality, data = wine, geom = "boxplot")
+grid.arrange(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, nrow = 3, top = "Figure 1.1 chemical properties among white and red wines")
+```
+From the boxplots we can see that the red and white wine differs mostly from fixed.acidity,total sulfur dioxide, volatile acidity, and pH. 
+### k-means clustering 
+Now we use the k-means clustering to different the red and white wine by color, so we set the cluster of 2, and run the k-means clustering on 11 chemical properties. 
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#center and scale the data
+X=wine[,(1:11)]
+X=scale(X,center=T,scale=T)
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# Extract the centers and scales from the rescaled data (which are named attributes)
+mu = attr(X,"scaled:center")
+sigma = attr(X,"scaled:scale")
+
+# Run k-means with 4 clusters and 25 starts
+clust1 = kmeans(X, 2, nstart=25)
+p1<-qplot(pH, fixed.acidity, data=wine, color=factor(wine$color))
+p2<-qplot(pH, fixed.acidity, data=wine, color=factor(clust1$cluster))
+grid.arrange(p1, p2, top = 'Figure 1.2 Results of K-means clustering for wine colors in the dimensions of fixed.acidity and pH')
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+p1.3 <- qplot( volatile.acidity, free.sulfur.dioxide, data=wine, color=factor(clust1$cluster))
+p1.4 <- qplot( volatile.acidity, free.sulfur.dioxide,data=wine, color=factor(wine$color))
+grid.arrange(p1.3,p1.4,nrow = 2, top = 'Figure 1.3 Results of K-means clustering for wine colors in the dimension of volatile.acidity and free.sulfur.dioxide')
+```
+
+From the graphs above, we can see that the k-means clustering successfully depart the two color of wine according to their chemical properties. Because in the figure 1.1, the two kinds of wine differs remarkably in four chemical properties, so we only show the clustering results of these four dimensions.  
+
+### PCA
+Next we use PCA to distinguish the reds from the whites. From the results below we can conclude that the first 5 PC explain nearly 80% of the variation.
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# Now look at PCA of the (average) survey responses. 
+PCAwines = prcomp(X, scale=TRUE)
+summary(PCAwines)
+```
+Next we examine the examine the linear relationships between the first 5 PC and the original chemical properties.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(kableExtra)
+pc1=data.frame(round(PCAwines$rotation[,1:5],2))
+kable(pc1, caption="**Table 1.1. The first five principal components**", format_caption = c("italic", "underline")) %>%
+  kable_styling(bootstrap_options = "striped", full_width = F)
+```
+In the following graph we can see the PCA can cluster two types of wine by the first two principal components, where the white wine tends to be in the positive dimension of first principle component.
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+scores = PCAwines$x
+qplot(scores[,1], scores[,2], xlab='Component 1', ylab='Component 2', color=wine$color, main = "Figure 1.4 Results of PCA for wine colors in the dimensions of first two principal components")
+```
+In conclusion, both k-means clustering and PCA can successfully distinguish the red and white wine by only using unsupervised information.
+## wine quality
+The bar plot shows the the distribution of of the wine quality, which has 7 degrees from 3 to 9, and We manually divided them into 3 levels low, medium, and high. According to the boxplot, we can see that wines with different quality may differ in  volatile acidity, alcohol, and free sulfur dioxide.
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+summary(wine$quality)
+ggplot(wine)+
+  geom_bar(aes(x = quality, fill = color, binwidth = 1))+
+             labs(title = "Figure 1.5 Histogram of wine qualities")
+
+```
+###clustering
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+wine$qualityind <- ifelse(wine$quality <= 4, 'low', ifelse(wine$quality <= 7, 'medium', 'high'))
+p1 <- qplot(x = qualityind, y = fixed.acidity, data = wine, geom = "boxplot")
+p2 <- qplot(x = qualityind, y = volatile.acidity, data = wine, geom = "boxplot")
+p3 <- qplot(x = qualityind, y = citric.acid, data = wine, geom = "boxplot")
+p4 <- qplot(x = qualityind, y = residual.sugar, data = wine, geom = "boxplot")
+p5 <- qplot(x = qualityind, y = chlorides, data = wine, geom = "boxplot")
+p6 <- qplot(x = qualityind, y = free.sulfur.dioxide, data = wine, geom = "boxplot")
+p7 <- qplot(x = qualityind, y = total.sulfur.dioxide, data = wine, geom = "boxplot")
+p8 <- qplot(x = qualityind, y = density, data = wine, geom = "boxplot")
+p9 <- qplot(x = qualityind, y = pH, data = wine, geom = "boxplot")
+p10 <- qplot(x = qualityind, y = sulphates, data = wine, geom = "boxplot")
+p11 <- qplot(x = qualityind, y = alcohol, data = wine, geom = "boxplot")
+grid.arrange(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, nrow = 3, top = "Figure 1.6 Boxplots of chemical properties of three wine quality levels")
+c = kmeans(X, 3, nstart=25)
+```
+
+The following figure shows the results of k-means clustering to differentiate the quality of wines according to the chemical properties. However, it's difficult to see how wines with different qualities differs with each other. 
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+cluster2 = kmeans(X, 3, nstart=25)
+p1.1 <- qplot(alcohol, volatile.acidity,  data=wine, color=factor(cluster2$cluster), alpha=I(0.4))
+p1.2 <- ggplot(wine, aes(x=alcohol, y = volatile.acidity, color=qualityind, alpha = I(0.4)))+
+  geom_point(data = subset(wine, qualityind %in% c("low","high", "medium")))
+p1.3 <- ggplot(wine, aes(free.sulfur.dioxide, volatile.acidity))+
+  geom_point(aes(color=factor(cluster2$cluster),alpha = I(0.4)))
+p1.4 <- ggplot(wine, aes(x=free.sulfur.dioxide, y = volatile.acidity, color=qualityind, alpha = I(0.4)))+
+  geom_point(data = subset(wine, qualityind %in% c("low","high","medium")))
+
+grid.arrange(p1.1, p1.2, p1.3, p1.4,nrow = 2, top = "Figure 1.7 Results of K-means clustering for wine qualities.")
+```
+###PCA
+Now we try  PCA to distinguish the wine quality. From previous results we conclude that the first 5 PC explain closely 80% of the variation. 
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+PCA_qualities = prcomp(X, scale=TRUE)
+scores2 = PCA_qualities$x
+qplot(scores2[,1], scores2[,2], color=wine$qualityind, xlab='Component 1', ylab='Component 2', main = "Figure 1.8 Results of PCA for wine qualities in the dimensions of first two principal components", alpha=I(0.3))
+```
+The graph above also shows that PCA couldn't perform the clustering of wine quality.
+
+
+# Market Segmentation
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(LICORS)
+library(tidyverse)
+library(ggplot2)
+library(foreach)
+library(cluster)
+library(dbplyr)
+library(kableExtra)
+library(gridExtra)
+library(data.table)
+library(ggcorrplot)
+```
+
+## 1.Introduction
+"NutrientH20", a large consumer drinks brand(hypothetically), wants to better understand the market based on the users tweet's content in Twitter post. Each tweet was categorized based on its content using a pre-specified scheme of 36 different categories. The goal for this analysis is to achieve market segmentation or user portrait on the basis of the a great bunch of tweets'contents.
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+social_marketing <- read.csv("~/Desktop/ECO395M-master/data/social_marketing.csv")
+```
+
+## 2.EDA 
+Initially, we take an overview of dataset by summing up the amount of average amount of categories per user.
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+## overview the dataset
+head(social_marketing)
+## information sniffing For different variables
+social_marketing %>%
+	select(-X,)%>%
+	summarize_all(mean)%>%
+  gather(name,value)%>%
+  ggplot()+
+  geom_col(aes(x=reorder(name, value),y=value),fill="lightblue")+
+  ggtitle('Figure 2.1 Average Amount of Categories per User')+
+  xlab("Average Amount of Categories")+
+  ylab("Categories")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  coord_flip()
+```
+As shown in the Figure 2.1, the bar chart shows the average frequency of the topic. Chatter(No category) appears the most. "Photo_sharing", "health_nutrition", "cooking", "politics" and "sports_fandom" are top 5 meaningful topics in the users interests.
+
+We will remove "chatter", "spam", "adult", "uncategorized", which are meaningless for this topic. Plot the **heatmap** to show the relationship between different categories.
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+X<-social_marketing[,c(-1,-2,-6,-36,-37)]
+X<-scale(X, center=TRUE, scale=TRUE) 
+ggcorrplot::ggcorrplot(cor(X), hc.order = TRUE)+ggtitle('Figure 2.2 Heatmap in Categories')
+```
+In Figure 2.2 **heatmap**, the interesting thing is all the variables are mutually positive correlative because it starts from 0. 
+## 3 Methodology
+To achieve market segmentation, the methodology is unsupervised learning, including **Kmeans** and **PCA**.
+### 3.1 Kmeans
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+## We have to measure which K is the optimal one to explain
+## elbow plot
+k_grid = seq(2, 30, by=1)
+SSE_grid = foreach(k = k_grid, .combine='c') %do% {
+cluster_k = kmeans(X, k, nstart=30)
+cluster_k$tot.withinss
+}
+
+elbow_sse=ggplot()+
+  geom_point(aes(x=k_grid,y=SSE_grid),color="lightblue")+
+  ggtitle('SSE')+
+  theme(plot.title = element_text(hjust = 0.5))
+
+## CH method
+N = nrow(X)
+CH_grid = foreach(k = k_grid, .combine='c') %do% {
+cluster_k = kmeans(X, k, nstart=50)
+W = cluster_k$tot.withinss
+B = cluster_k$betweenss
+CH = (B/W)*((N-k)/(k-1))
+CH
+}
+
+elbow_CH=ggplot()+
+  geom_point(aes(x=k_grid,y=CH_grid),color="lightblue")+
+  ggtitle('CH')+
+  theme(plot.title = element_text(hjust = 0.5))
+  
+##combine
+grid.arrange(elbow_sse,elbow_CH,nrow = 1,top="2.3 Elbow Plot+CH index")
+```
+By eyeballing observation, we find 9 is the optimal number for group numbers of clustering.
+
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+## we decide 9 to do optimal
+set.seed(101)
+cluster1 = kmeanspp(X, k=9, nstart=25)
+Z<-social_marketing[,c(-1,-2,-6,-36,-37)]
+Z['label']=factor(cluster1$cluster)
+
+## Count the Amount in Different Label
+group=Z%>%
+group_by(label)%>%
+count(label)
+
+kable(group, col.names=c('Label','Numbers'),caption="**Table 2.1 : The Number of Cluster Group **")%>%kable_styling(position="center", full_width = NULL)
+
+plot_list = list()
+category_list=list()
+for (i in 1:9) {
+    p = Z%>%
+  group_by(label)%>%
+  summarize_all(mean)%>%
+  filter(label==i)%>%
+  select(-label)%>%
+  gather(name,value)%>%
+  arrange(desc(value))%>%
+  head(8)%>%
+  ggplot()+
+  geom_col(aes(x=reorder(name, value),y=value))+
+      xlab('topic')+
+      ylab('frequency')+
+      coord_flip()
+    q = Z%>%
+  group_by(label)%>%
+  summarize_all(mean)%>%
+  filter(label==i)%>%
+  select(-label)%>%
+  gather(name,value)%>%
+  arrange(desc(value))%>%
+  select(name)%>%
+  head(5)
+    plot_list[[i]] = p
+    category_list[i]=q
+}
+category_list=category_list%>%as.data.frame()
+
+colnames(category_list)=c("life_moment",'health-life', 'lifestyle', 'college_life', 'man-topic', 'lady-topic', 'art_style','News','Complex')
+rownames(category_list)=c("no.1", "no.2", "no.3", "no.4", "no.5")
+
+
+kable(category_list,caption="**Table 2.2 : Top 5 Categories in Cluster  **")%>%kable_styling(position="center", full_width = NULL)
+
+
+
+
+grid.arrange(plot_list[[1]],plot_list[[2]],plot_list[[3]],
+             plot_list[[4]],plot_list[[5]],plot_list[[6]],
+             plot_list[[7]],plot_list[[8]],plot_list[[9]],nrow = 3,top="Figure 2.4 Top 8 Categories in 9 Cluster ")
+
+```
+Using **Kmeans**, we create 9 clusters. The number of cluster group are illustrated in the table 2.1. We add the label into original data and Top 8 categories are shown in the Figure 4.4. Based on these high-frequency categories, we empirically build up these topics for different labels. The Clusters are (Table 2.2) as follows:
+For Cluster1, "Photosharing", "shopping" and "current events" are most topics.(life-moment)
+For Cluster2, "health_nutrition", "personal_fitness” and “cooking" are most topics.(health-life)
+For Cluster3, “sports_fandom", "religion" and "food" are most topics.(lifestyle)
+For Cluster4, ”college_uni", "online_gaming" and "sports_playing" are most topics.(college_life)
+For Cluster5, "news", "politics" and "automotive" are most topics.(man-topic)
+For Cluster6, "cooking", "photo-sharing", "fashion", "beauty" are most topics.(lady-topic)
+For Cluster7, "TV_film", "arts" are most topics.(art_style)
+For Cluster8, "Politics", "travel", "computer", "news" are most topics.(News)
+For Cluster9, "Photosharing", "current events" and "health_nutrition" are most topics.(Complex) (hard to explain)
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+## set these label into dataset
+Z['sublabel']=factor(cluster1$cluster)
+Z=Z%>%
+  mutate(sublabel=recode(sublabel,
+  "1"="life_moment",
+  "2"='health-life',
+  "3"='lifestyle',
+  '4'='college_life',
+  '5'='man-topic',
+  '6'='lady-topic',
+  '7'='art_style',
+  '8'='News',
+  '9'='Complex'
+        ))
+```
+
+### 3.2 PCA
+PCA, focus on reducing the feature space, allowing most of the information or variability in the data set to be explained using fewer features.
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+PCA_data= prcomp(X, rank=6,scale=TRUE)
+sum_pca=data.frame(summary(PCA_data)$importance)[,(1:6)]
+kable(sum_pca,caption="**Table 2.3 : Summary of PCA Variance **")%>%kable_styling(position="center", full_width = NULL)
+
+
+
+PCA_element<-seq(1, 32, by=1)
+PVE<-100*PCA_data$sdev^2/sum(PCA_data$sdev^2)
+pve_data=cbind.data.frame(PCA_element, PVE)
+
+par(mfrow=c(1,2))
+plot(PCA_element,PVE,type='l')
+plot(PCA_data)
+mtext("Figure 2.4 Variance in PCA",
+      side = 3,
+      line = - 1,
+      outer = TRUE)
+
+loadings_summary = PCA_data$rotation %>%
+  as.data.frame() %>%
+  rownames_to_column('Categories')
+```
+Based on We use 6 components because these components could explain 50% variance and decreasing rate of variance becomes much slower after that. Hence, we choose 6 components to analysis.
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+content=data.frame("Cluster"=character(5))
+for (i in 2:7){
+c=loadings_summary[,c(1,i)]%>%
+arrange(desc(loadings_summary[i]))%>%
+head(5)%>%
+select(Categories)%>%as.data.frame()
+content=cbind(content,c)
+}
+colnames(content)=c("categories","pc1_lifestyle", "pc2_outdoor", "pc3_complex_man", "pc4_health", "pc5_lady", "pc6_college")
+rownames(content)=c("no.1", "no.2", "no.3", "no.4", "no.5")
+
+kable(content,caption="**Table 2.4 : Top 5 Categories in PCA**")%>%kable_styling(position="center", full_width = NULL)
+
+Z['pc1_lifestyle']=PCA_data[["x"]][,1]
+Z['pc2_outdoor']=PCA_data[["x"]][,2]
+Z['pc3_complex_man']=PCA_data[["x"]][,3]
+Z['pc4_health']=PCA_data[["x"]][,4]
+Z['pc5_lady']=PCA_data[["x"]][,5]
+Z['pc6_college']=PCA_data[["x"]][,6]
+
+
+```
+As illustrated in the **Table 2.4**, we empirically make labels for different principle component. To some extent, these components are similar to clusters labels. In the next, we will contrast these two unsupervised methodology.
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+g1=ggplot(data=Z)+
+  geom_point(aes(x=pc1_lifestyle,y=pc2_outdoor,color=sublabel))
+g2=ggplot(data=Z)+
+  geom_point(aes(x=pc3_complex_man,y=pc4_health,color=sublabel))
+g3=ggplot(data=Z)+
+  geom_point(aes(x=pc5_lady,y=pc6_college,color=sublabel))
+
+grid.arrange(g1,g2,g3,nrow = 3,top="Figure 2.5 Top 8 Topic in Different Cluster ")
+
+```
+From the Figure 2.5, we find some strong link between PCA and Cluster, which proves that our cluster are meaningful.
+For the first graph, 
+  Cluster lifestyle has high point in pca1_lifestyle and pca2_outdoor
+For the second graph,   
+  Cluster health life has high point in pca4_health.
+  Cluster college life has low point in pca4_health.
+  Cluster News has high point in pc3_complex_man
+  Cluster lay_topic has low point in pc3_complex
+For the third graph,   
+  Cluster lady topic has high point in pc5_lady
+  Cluster college life has low point in pc5_lady
+  Cluster college life has high point in pc6_college
+  Cluster art_style has low point in pc6_college
+## 4.Conclusion
+We use k-means and PCA to make interesting market segmentation for NutrientH20. The interesting group we found is health, outdoor group focusing on outdoor life and health nutrition. Besides, lady-topic group focusing on beauty and fashion need more customized lady-like product. In addition, college-life group also clearly identified by PCA and Kmeans. NutrientH20 could design some activity or sub-brand target for college student.
+
+# Association rules for grocery purcharse
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(arules)
+library(arulesViz)
+library(igraph)
+```
+
+## Top Ten Popular Goods
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#formalize data
+groceries_raw = read.csv("~/Desktop/groceries.txt", header = FALSE)
+groceries_raw$buyer = seq.int(nrow(groceries_raw))
+groceries_raw$buyer = groceries_raw$buyer %>% as.character()  
+groceries_raw = gather(groceries_raw, key="goods_column", value="goods",1:4)
+groceries = groceries_raw[order(groceries_raw$buyer),]
+groceries = subset(groceries, select = -goods_column)
+blank = which(groceries$goods=="") #select which rows that have blank goods
+groceries = groceries[-blank,] #delete the rows that have blank goods
+groceries$buyer = factor(groceries$buyer)
+```
+
+Firstly, we show the most 10 popular goods among the cousumers. From the plot, we can see that the most popular goods are whole milk, other vegetables, rolls and buns, soda and yogurt.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# top 10 goods
+goodscounts = groceries %>%
+group_by(goods) %>%
+summarize(count = n()) %>%
+arrange(desc(count)) %>%
+head(10)
+
+ggplot(goodscounts) +
+geom_col(aes(x=reorder(goods, count), y=count), fill="lightblue") +
+coord_flip()+
+labs(x="goods",y="count") 
+```
+
+## Total Association Rules
+Then we use the rules with support >= 0.01, confidence >= 0.1, length (maxlen) <= 2. We find 45 rules in total, and the following table show the summary of all the association rules.
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+groceries = split(x=groceries$goods, f=groceries$buyer)
+groceries = lapply(groceries, unique)
+goodstrans = as(groceries, "transactions")
+goodsrules = apriori(goodstrans,
+parameter=list(support=.01, confidence=.1, maxlen=2))
+summary(goodsrules)
+```
+
+## Subset
+
+We check the subset.
+
+First, we check the rule with lift >= 3, which indicating strong connections. We can see four rules in the following table. From the table, we can see that, for example, the first rules shows if a consumer buy pip fruit, the probability that he also but tropical fruit is 3.9 times higher than if the consumer doesn't buy pip fruit. Given this information, grocery can put pip fruit by the tropical fruit.
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+inspect(subset(goodsrules, lift >= 3))
+```
+
+Secondly, there are 5 rules satisfying confidence > 0.3. For example, we can see that, the first rule shows that if a consumer buy curd, then we are 37% positive that he will also buy whole milk. This type of consumer may want to make desserts by using milk and curd. Given this information, grocery can put curd by the whole milk.
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+inspect(subset(goodsrules, confidence > 0.3))
+```
+
+Thirdly, as the thresholds we set above are too strict that once we combine them, there would be too little association rules satisfied, we purposely relaxed the constraints. Considering visualization and associations, we set lift > 2 & confidence > 0.2, and there are 20 rules satisfied. For example, if a consumer buy butter, then we are 40% positive that he will also buy whole milk, and this is 2.5% times higher than if he don't buy butter. Also, if a consumer buy whipped / sour cream, then we are 25% positive that he will also buy whole milk, and this is 1.5% times higher than if he don't buy whipped / sour cream. So given these information, it make sense to put  the foods that need to make dessert together.
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+inspect(subset(goodsrules, lift > 2 & confidence > 0.2))
+```
+
+The following is the scatter plot of all 45 rules.
+We use network graph to visualize connections. We use the rules with support > 0.005, confidence > 0.2, there are 20 rules satisfied. 
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#plot(goodsrules, measure = c("support", "lift"), shading = "confidence")
+sub = subset(goodsrules, subset= support > 0.005 & confidence > 0.2)
+summary(sub)
+plot(head(sub, 100, by='lift'), method='graph')
+```
