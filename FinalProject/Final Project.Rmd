@@ -1,0 +1,610 @@
+---
+title: "Final Project"
+author: "Yangxi, Shuyan, Chen"
+date: "2022/4/30"
+output: md_document
+always_allow_html: true
+---
+## Abstract
+This project leverages machine learning algorithms to perform market segmentation based on Airbnb datasets of Singapore , so to help Airbnb expand the Singapore market by designing market strategies or advertisements for different target customers. After cleaning and processing datasets containing information, we successfully perform initial EDA (exploratory data analysis) and then implement K-means clustering and PCA(Principal Component Analysis) to identify several meaningful clusters of Airbnb listing: popular and quick budget-friendly, high-end listings, affordable longer getaway listings, extended stay listings, and mid-range highly accessible. Finally, we create several advanced visualizations using both geo-spatial data and the results of our analyses.
+
+## Introduction
+Founded in 2008 and based in San Francisco, California, Airbnb is a marketplace that provides a platform for hosts to accommodate guests with short-term lodging and tourism-related activities. Guests can search for specific types of homes, such as bed and breakfasts, unique homes, and vacation homes etc. Meanwhile, Asia is a vibrant tourist destination, and Singapore now is one of the top 3 fast-growing markets for Airbnb. As tourism is one of the main drivers of Singapore’s GDP growth, Singaporean citizens will continue to leverage the opportunity offered by Airbnb to supplement their incomes. Thus, analyzing the Airbnb in Singapore market will be helpful to its company development and citizens to make business strategies.
+The goals of the project are to make an overview of the Airbnb Singapore and to segment the existing listings in these areas based on several shared features including things like price, availability, and popularity that might interest different groups of customers. For a user’s point of view, the project could be useful to have information about existing houses.
+
+Data source: Inside Airbnb: Get the Data
+
+## Strategy and Method
+
+### General Logic
+1.	Gather, clean, and process Airbnb datasets that contain information about the specific Airbnb listings in Singapore, and then make a grasp of the Singapore Airbnb market. 
+2.	Perform market segmentation based on the data by employing an unsupervised machine learning algorithm--K-means clustering and Principal Component Analysis (i.e., PCA).
+3.	Identify any meaningful segments that will help achieve the overall goal which is to help Airbnb expand the Singapore market by designing market strategies and advertisements for different target customers.
+
+### Detailed Logic
+Our project will proceed as follows.
+(1) Import libraries and data.
+Preliminary data exploration analysis and visualization by box plots and histograms. And then use the interactive map to show insightful and interesting findings.
+(2) Clean and process the data for the application of the K-means clustering algorithm.
+Firstly, we drop irrelevant columns that are not necessary for this project, such as name, host_id, and host_name. Next, we identify and handle missing values in the dataset. Although the data frame is free of missing values, there was a small subset of listings that had a price of 0, and intuitively this is neither typical nor realistic given that renting a property is rarely free, so we will replace those numbers with the median value. In the following steps, we remove the duplicate data and convert integers and categorical variables into numbers for consistency by using the dummy_cols method to implement one-hot encoding. Moreover, given the primary aim of the project, we’re going to temporarily drop some of the columns and create a new, simpler data frame that focuses more on price, reviews, availability, and minimum number of nights, we therefore temporarily drop all columns except for Price, Minimum Nights, Number of Reviews, Reviews per Month, and Availability (365). Lastly, we scale the data to implement the machine learning algorithms.
+(3). Determine the optimal number of clusters using the elbow method.
+To determine the optimal k value for clusterings, we will take elbow graph and CH graph to make sure the best clustering that fits the data with simplicity
+(4). Train and implement the K-means clustering algorithm.
+K-means clustering is one of the simplest and popular unsupervised machine learning algorithms. To put it in simple, the K-means algorithm identifies k number of centroids, and then allocates every data point to the nearest cluster, while keeping the centroids as small as possible. We will use K-means to make partition of dataset.
+(5) Implement the Principal Component Analysis algorithm to perform dimensionality reduction.
+PCA, refers to principal Component Analysis, focuses on reducing the feature space, allowing most of the information or variability in the data set to be explained using fewer features. In this part, the main purposes for implementing PCA to validate the outcome of Cluster and better analyze the data.
+(6) Create advanced visualizations using the clusters and geo-spatial data.
+Using ggmap, we visualized the clusters with different properties in Singapore’s map 
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(ggpubr)
+library(VIM)
+library(Hmisc)
+library(fastDummies)
+library(kableExtra)
+library(dplyr)
+library (maps)
+library (mapproj)
+library (maptools)
+library (ggmap)
+library (mapview)
+library (leaflet)
+library(foreach)
+library(cowplot)
+library(gridExtra)
+options(knitr.duplicate.label = "allow")
+```
+
+## Exploration, Visual Illustration and Cleaning of Dataset
+
+### Exploratory Data Analysis
+
+1. Summary Statistics
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+options(knitr.duplicate.label = "allow")
+singapore <- read.csv("https://raw.githubusercontent.com/ShuyanYue/ECO395-DataMining-Shuyan-Yangxi-Chen/main/FinalProject/data/singapore.csv", header = TRUE)
+#singapore <- read.csv("~/Desktop/singapore.csv", header = TRUE)
+#singapore <- read.csv("C:/Users/yangxi/Desktop/R/project/singapore.csv")
+# Summary Statistics Including the Averages, Minimum Values, and Maximum Values
+min_price = min(singapore$price)
+max_price = max(singapore$price)
+average_minimum_nights = mean(singapore$minimum_nights)
+min_minimum_nights = min(singapore$minimum_nights)
+max_minimum_nights = max(singapore$minimum_nights)
+summary<-c(
+'average_price'= mean(singapore$price), 
+'min_price'= min(singapore$price), 
+'max_price'= max(singapore$price),
+'average_minimum_nights' = mean(singapore$minimum_nights), 
+'min_minimum_nights' = min(singapore$minimum_nights), 
+'max_minimum_nights' = max(singapore$minimum_nights))%>%as.data.frame()
+
+knitr::kable(summary, col.names = c('Statistics'), align = "c",caption = "Table A-1 E/V/C - EDA 1.Summary of Statistics")%>%
+kable_styling(position="center", full_width = FALSE)%>%
+column_spec(1, width = "10em")
+```
+*Observations:*
+
+(1). Singapore has an average price of around 209 dollars
+(2). One peculiar result is that Singapore lists properties that list the price as being 0.
+(3). Singapore has the most expensive property at 10,286 dollars.
+(4). Singapore has 1 as their minimum values for minimum number of nights, average for minimum_nights is around 41. Singapore has a property where the minimum number of nights is 1000 (that's nearly 2.7 years).
+
+2. Drill Down
+Let's take a closer look at some of the interesting features we have discoverd. Specifically, we'll examine the following:
+
+(1). Airbnb properties that list 0 as the price.
+(2). Airbnb properties with the highest prices.
+(3). Airbnb properties with the highest value for minimum number of nights.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+airbnb_min_price = subset(singapore, price == 0) %>% as.data.frame()
+knitr::kable(airbnb_min_price, align = "c",caption = "Airbnb Properties with the Lowest Prices - $0")%>%
+kable_styling(position="center", full_width = FALSE)%>%
+column_spec(1, width = "10em")
+
+airbnb_max_price = subset(singapore, price == 10286) %>% as.data.frame()
+knitr::kable(airbnb_max_price, align = "c",caption = "Airbnb Properties with the Highest Prices - $10286")%>%
+kable_styling(position="center", full_width = FALSE)%>%
+column_spec(1, width = "10em")
+
+airbnb_max_minnights = subset(singapore, minimum_nights == 1000) %>% as.data.frame()
+knitr::kable(airbnb_max_minnights, align = "c",caption = "Airbnb Properties with the Highest Minimum Number of Nights - 1000 Nights")%>%
+kable_styling(position="center", full_width = FALSE)%>%
+column_spec(1, width = "10em")
+```
+*Observations:*
+
+1. Singapore has 1 hotel room listed for 0 dollars. This property is hotel room, and the low value is likely due to some promotion. 
+2. Singapore's most expensive property is 10,286 dollars. The listing includes the entire home, which located in West Region. And it is a penthouse condo unit.
+3. Singapore has 5 properties that requires 1,000 minimum nights (around 2.7 years).
+
+3. Analyzing Unique Property Types
+Let's examine the types of properties available in Singapore.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(ggpubr)
+room_type1 = singapore %>% 
+  group_by(room_type) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count))
+
+ggdonutchart(room_type1, "count",label = "count",fill = "room_type",color = "white")+ggtitle('Figure A-1 E/V/C - EDA 3. Analyzing Unique Property Types')
+```
+
+*Observations:*
+
+The majority of the listings for Singapore is private room, which is 1693. Entire home/apt is almost the same as priate room, which is 1670. Moreover,shared room is the scarcest type of property.
+
+We'll now examine the correlations that hold between different features.
+
+4. Data Visualizations
+We'll now visualize the data. Constructing visualizations can help detect interesting trends and patterns.
+
+**Box Plots**
+We'll create a few boxplots that visualize the ranges of prices associated with different types of rooms.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggboxplot(singapore, x='room_type', y='price', fill='room_type', ,bxp.errorbar = T, palette='Tron Legacy', add='point')+ggtitle('Figure A-2 E/V/C - EDA 4. Box Plots')
+```
+
+*Observations:*
+
+The box plot shows that private room and entire home/apartments in Singapore have a wider range of prices with many outliers above the upper quartile.
+
+**Histograms**
+We'll now visualize the distribution of values for the features, minimum nights and price.
+In order to show more clearly, we select the listings with minimum nights less than 200. And according to Airbnb website, we set the minimum nights less than 30 as short-term rental.
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+hist(singapore$price,
+col = "red",
+xlab = "Price",
+ylab = "Frequency",
+main = "Airbnb Price in Singapore",
+border = "black",
+freq = T,
+density = 12,
+angle = 45)
+
+singapore_plot_200 = singapore[singapore$minimum_nights<=200,]
+hist(singapore_plot_200$minimum_nights,
+col = "red",
+xlab = "Minimum Nights",
+ylab = "Frequency",
+main = "Minimum Nights in Singapore",
+border = "black",
+freq = T,
+density = 12,
+angle = 45)
+abline(v = 30, col="red", lwd=3, lty=2)
+```
+
+*Observations:*
+
+The histograms are skewed right. We see that that lower prices in Singapore have the highest frequency. As noted earlier, the average price in Singapore is $209. Similarly, the lower values for minimum nights have the highest frequency in Singapore. The average minimum number of nights in Singapore is 41.
+
+### Map Visualization
+
+1. Listing Distribution on Map
+Taking a look at map below show the number of proterties in Singapore
+```{r echo=FALSE, message=FALSE, warning=FALSE,force=TRUE}
+#install.packages("remotes")
+#install.packages("remotes", repos = "https://cran.rstudio.com/bin/macosx/big-sur-arm64/contrib/4.1/remotes_2.4.2.tgz")
+#remotes::install_github("shaunkhoo/ltaer")
+#install.packages( ' devtools ' )
+ #devtools :: install_github( ' shaunkhoo/ltaer ' )
+library(remotes)
+install_github("shaunkhoo/ltaer")
+library (ltaer)
+library(ggmap)
+exploreSGMap(singapore, popup = 'price', cluster = T, colour = 'green', alpha = 1, size = 1)
+```
+*Observations:* The most listings are in Central Region.
+
+2. Room Type on Map
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggmap(sg_map,darken=c('0.70', '#030d2f')) +
+geom_point(data = singapore, mapping = aes(x = longitude, y = latitude, color = factor(room_type)),
+alpha = 0.7, size = 1) +
+scale_color_brewer(type = "qual", palette = "Set2", name = "Room Type")+ggtitle('Figure A-4 E/V/C - MP 2. Room Type on Map')
+```
+*Observations:*
+
+From the plot, we can see that the entire home/apt represented by the green dot and the hotel room represented by the orange dot are more concentrated and mainly distributed in the Central Region while the private room and shared room are more scattered.
+
+3. Price on Map
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+sum(singapore$price > 700)
+```
+
+*Remark:* Because the number of properties with higher than 700 only 100, only 2%. In order to show the distribution of property price more clearly, we select the data of property price below 700.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+singapore_700 = singapore[singapore$price<700,]
+ggmap(sg_map,darken=c('0.70', '#030d2f')) + geom_point(data = singapore_700, aes(x = longitude, y = latitude, colour =price), size = 1, alpha = 0.7) + xlab('') + ylab('') + labs(colour = 'Price') +
+scale_colour_gradient(low = '#FFFFFF', high = '#df2222') +
+theme(axis.line = ggplot2::element_blank(),
+axis.text = ggplot2::element_blank(),
+axis.ticks = ggplot2::element_blank(),
+plot.margin = ggplot2::margin(0, 0, -1, -1, 'cm'),
+legend.position = c(0.9, 0.25),
+legend.title = element_text(colour = 'white', size = 10),
+legend.text = element_text(colour = 'white', size = 7),
+legend.background = element_rect(fill = 'black', size = 0))
+
+library(ggrepel)
+singapore_neighbourhood  = singapore %>% 
+  group_by(neighbourhood_group) %>%
+   dplyr::summarize(latitude = first(latitude), longitude=first(longitude),avg_price=mean(price)) %>% ungroup()
+
+
+ggmap(sg_map,darken=c('0.70', '#030d2f')) + geom_point(data = singapore_neighbourhood, aes(x = longitude, y = latitude, colour =avg_price), size = 1, alpha = 0.7) + xlab('') + ylab('') + labs(colour = 'Average Price') +
+scale_colour_gradient(low = '#FFFFFF', high = '#df2222') +
+theme(axis.line = ggplot2::element_blank(),
+axis.text = ggplot2::element_blank(),
+axis.ticks = ggplot2::element_blank(),
+plot.margin = ggplot2::margin(0, 0, -1, -1, 'cm'),
+legend.position = c(0.9, 0.25),
+legend.title = element_text(colour = 'white', size = 10),
+legend.text = element_text(colour = 'white', size = 7),
+legend.background = element_rect(fill = 'black', size = 0)) +geom_label_repel(data = singapore_neighbourhood, aes(x = longitude, y = latitude, label = neighbourhood_group), size = 2)
+```
+*Observations:*
+
+The first map shows that the more red the dot the higher the price of the property in the area. According to the first map we can observe that there are more high priced properties in Central Region. By checking with the second map, which shows the average price in different neighborhood, we can see that the highest average price is truly in Central Region, which is more than $200.
+
+4. Minimum nights on Map
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+sum(singapore$minimum_nights > 200)
+```
+*Remark:* Because the number of properties with higher than 200 only 42, only 1%. In order to show the distribution of minimum nights more clearly, we select the data of property price below 200.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+singapore_200 = singapore[singapore$minimum_nights<200,]
+ggmap(sg_map,darken=c('0.70', '#030d2f')) + geom_point(data = singapore_200, aes(x = longitude, y = latitude, colour =minimum_nights), size = 1, alpha = 0.7) + xlab('') + ylab('') + labs(colour = 'Minimm Nights') +
+scale_colour_gradient(low = '#FFFFFF', high = '#df2222') +
+theme(axis.line = ggplot2::element_blank(),
+axis.text = ggplot2::element_blank(),
+axis.ticks = ggplot2::element_blank(),
+plot.margin = ggplot2::margin(0, 0, -1, -1, 'cm'),
+legend.position = c(0.9, 0.25),
+legend.title = element_text(colour = 'white', size = 10),
+legend.text = element_text(colour = 'white', size = 7),
+legend.background = element_rect(fill = 'black', size = 0))+ggtitle(' Figure A-5 E/V/C - MP 4. Minimum nights on Map')
+```
+*Observations:*
+
+The distribution of minimum nights is random and dispersed.
+
+### Data Cleansing
+
+At this point, Iwe're going to clean and process the data to be used for analysis.
+
+1. Dropping Irrelevant Columns
+There are several columns that are not necessary for this project. These columns include name, host_id, and host_name. So we drop these columns.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+discard=c("name","host_id","host_name")
+singapore=singapore[,!names(singapore)%in%discard]
+```
+
+2. Missing Values
+
+In this section, I will identify and handle missing values in the dataset.
+
+*Locate Missing Values*
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+missing_count = aggr(singapore, P=F,N=T)
+summary(missing_count)
+```
+
+*Remark:* There are missing values under the reviews_per_month column. Let us determine the percentage of missing values.
+
+*Observations:* Missing values make up approximately 44% of the values in reviews_per_month. For our purpose, we will simply impute the missing values with the mean value for that column.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+missing = which(is.na(singapore$reviews_per_month))
+singapore_without_missing = singapore[-missing,]
+singapore_with_missing = singapore[missing,]
+n=sum(is.na(singapore))
+mean_reviews_per_month = mean(singapore_without_missing$reviews_per_month)
+singapore_with_missing$reviews_per_month = rep(mean_reviews_per_month,n)
+singapore1 = rbind(singapore_with_missing,singapore_without_missing)
+n1=sum(is.na(singapore1))
+n1
+```
+
+*Remark:* The data frame is free of missing values. However, it was previously noted that there was a small subset of listings that had a price of 0. Our intuition is that this is neither typical nor realistic given that renting a property is rarely free. It is likely that the price of 0 reflects some promotion or deal that is applied to the overall price after certain conditions are met (e.g., renting a certain number of nights). Considering that we only have a small number of these properties, we will replace those numbers with the median value. We will use the median value considering that the price column contains several extreme outliers.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+zero_price = which(singapore1$price==0)
+singapore1_without_zeroprice = singapore1[-zero_price,]
+singapore1_with_zeroprice = singapore1[zero_price,]
+z=sum(singapore1$price==0)
+median_price = median(singapore1$price)
+singapore1_with_zeroprice$price = rep(median_price,z)
+singapore_new = rbind(singapore1_with_zeroprice,singapore1_without_zeroprice)
+n2=sum(singapore_new$price==0)
+n2
+```
+*Remark:* All missing and anomalous values have been corrected.
+
+3. Duplicate Data
+We'll now check to see if there are any duplicate rows in the data frame. If there are, then we will proceed to remove the duplicated data.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+sum(duplicated(singapore_new))
+```
+
+*Remark:* We are good to go.
+
+4. Check Data Types
+Let's examine the types of data and fix any errors by converting data into the proper type.
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+str(singapore_new)
+```
+*Remark:* It seems that I am working with the proper data types. But for the sake of consistency, I will convert integers into numeric.
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+singapore_new$minimum_nights = as.numeric(singapore_new$minimum_nights)
+singapore_new$number_of_reviews = as.numeric(singapore_new$number_of_reviews)
+singapore_new$calculated_host_listings_count = as.numeric(singapore_new$calculated_host_listings_count)
+singapore_new$number_of_reviews_ltm = as.numeric(singapore_new$number_of_reviews_ltm)
+singapore_new$availability_365 = as.numeric(singapore_new$availability_365)
+str(singapore_new)
+```
+
+5. One-hot Encoding
+The data frame contains categorical variables. To apply the machine learning algorithms, we need to convert these variables into a form of numerical format. We will use the dummy_cols method to implement one-hot encoding.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+singapore_new = dummy_cols(singapore_new, select_columns = 'room_type')
+names(singapore_new)[names(singapore_new) =="room_type_Entire home/apt"] <-"Entire Home / APT"
+names(singapore_new)[names(singapore_new) =="room_type_Hote"] <-"Hotel"
+names(singapore_new)[names(singapore_new) =="room_type_Hotel room"] <-"Hotel Room"
+names(singapore_new)[names(singapore_new) =="room_type_Private room"] <-"Private Room"
+names(singapore_new)[names(singapore_new) =="room_type_Shared room"] <-"Shared Room"
+```
+
+6. Feature Selection
+Given the primary aim of the project, we're going to temporarily drop some of the columns and create a new, simpler data frame that focuses on price, reviews, availability, and minimum number of nights. We will therefore temporarily drop all columns except for Price, Minimum Nights, Number of Reviews, Reviews per Month, and Availability (365). The resulting data frame will be ideal for the K-means clustering algorithm.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+singapore_new_subset = subset(singapore_new, select=c(price,minimum_nights, number_of_reviews,reviews_per_month,availability_365))
+```
+
+Remark: The data frame is now ready to undergo the data normalization process
+
+7. Scale Data
+At this point, we need to scale the data will help us successfully implement the machine learning algorithms.
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+singapore_sub_scaled=scale(singapore_new_subset, center=T, scale=T)
+```
+
+## Results - Statistical Models
+
+### Unsupervise Machine Learning wiht k-means amd PCA
+
+Typically, unsupervised algorithms is one of effective methodology that making inferences from dataset using only input vectors without referring to known, or labelled, outcomes. K-means clustering is one of the simplest and popular unsupervised machine learning algorithms. To put it in simple, the K-means algorithm identifies k number of centroids, and then allocates every data point to the nearest cluster, while keeping the centroids as small as possible. In this section, we will use k-means to make clear market segmentation to better illustrate the airbnb market in Singapore.
+
+1. Optimal Cluster 
+Initially, we need to ensure the number of clustering for dataset on the basis of statistical and empirical knowledge. On the one hand, from elbow graph, we can eyeball that SSE(the sum of the squared distance between centroid and each member of the cluster) exponentially plummets before 5 cluster and then gradually decreases. Besides, CH graph shows cluster 5 is locally optimal point conveying that setting 5 clusters best balance the fitness and simplicity. To sum up, Combined Elbow-plot and CH-plot, we are inclined to choose 5 clusters. On the other hand, The strategy for Airbnb is to build 5 categories of rentals that satisfies the all types of demand and purposes for customers, which includes **Budget-friendly listings**, **High-end listings**, **Popular listings**, **Extended stay listings** and **Accessible listings**. In conclusion, we will make a trial for 5 clusters for make segmentation initially.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+## elbow
+k_grid = seq(2, 30, by=1)
+SSE_grid = foreach(k = k_grid, .combine='c') %do% {
+cluster_k = kmeans(singapore_sub_scaled, k, nstart=30)
+cluster_k$tot.withinss
+}
+elbow_sse=ggplot()+
+  geom_line(aes(x=k_grid,y=SSE_grid))+
+  ggtitle('SSE')+
+  theme(plot.title = element_text(hjust = 0.5))
+
+
+N = nrow(singapore_sub_scaled)
+CH_grid = foreach(k = k_grid, .combine='c') %do% {
+cluster_k = kmeans(singapore_sub_scaled, k, nstart=10)
+W = cluster_k$tot.withinss
+B = cluster_k$betweenss
+CH = (B/W)*((N-k)/(k-1))
+CH
+}
+
+elbow_CH=ggplot()+
+  geom_line(aes(x=k_grid,y=CH_grid))+
+  ggtitle('CH')+
+  theme(plot.title = element_text(hjust = 0.5))
+
+
+grid.arrange(elbow_sse,elbow_CH,nrow = 1,top="Figure A-8 Results - UML 1. Optimal Cluster - Elbow Plot + CH index")
+```
+2.Applied K-means
+The next step is applying K-means on the selected feature and artificially labelize the clusters when observing the properties of these centroids.
+```{r}
+set.seed(101)
+cluster1 = kmeans(singapore_sub_scaled, 5, nstart=25)
+cluster1_unscale <- t(apply(cluster1$centers, 1, 
+                function(r) r * attr(singapore_sub_scaled, 'scaled:scale') + 
+                                attr(singapore_sub_scaled, 'scaled:center')))%>%as.data.frame()
+
+CLUSTER<-c("popular and quick budget-friendly","high-end listings","affordable longer getaway listings","Extended Stay Listings","mid-range highly accessible")
+cluster1_unscale<-cbind(cluster1_unscale,CLUSTER)
+
+
+kable(cluster1_unscale,caption="Table 3.1 : Summary of Cluster-center ")%>%kable_styling(position="center", full_width = NULL)
+
+```
+3. Identifying and Interpreting Important Clusters
+
+(1).For **Cluster 1**, we assigned index 1 as **popular and quick budget-friendly** because the price is cheapest and the requirement of minimum nights are not really demanding.
+
+(2).For **Cluster 2**, we assigned index 2 as **high-end listings** because the price of center in cluster 2 is about 5259.
+
+(3).For **Cluster 3**, we assigned index 3 as **affordable longer getaway listings** because the price is fairly cheap but not cheapest and the requirement of minimum_nights are relatively inclusive.
+
+(4).For **Cluster 4**, we are assigned index 4 as **Extended Stay Listings** because the requirement of minimum nights is about 252, which means the guests must stay for the longest amount of time compared with others.
+
+(5).For **Cluster 5**, we are assigned index 5 as **mid-range highly accessible** because available day is the most even though the price is relatively high.
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+## add back 
+singapore_new_subset_kmeans<-singapore_new_subset
+singapore_new_subset_kmeans['label']=factor(cluster1$cluster)
+singapore_new_kmeans<-singapore_new
+singapore_new_kmeans['label']=factor(cluster1$cluster)
+
+singapore_new_kmeans$Cluster<-0
+singapore_new_kmeans$Cluster[singapore_new_kmeans$label==1]<-"popular and quick budget-friendly"
+singapore_new_kmeans$Cluster[singapore_new_kmeans$label==2]<-"high-end listings"
+singapore_new_kmeans$Cluster[singapore_new_kmeans$label==3]<-"affordable longer getaway listings"
+singapore_new_kmeans$Cluster[singapore_new_kmeans$label==4]<-"Extended Stay Listings"
+singapore_new_kmeans$Cluster[singapore_new_kmeans$label==5]<-"mid-range highly accessible"
+```
+
+4 Apply Principal Component Analysis
+PCA, refers to principal Component Analysis, focuses on reducing the feature space, allowing most of the information or variability in the data set to be explained using fewer features. In this part, the main purposes for implementing PCA to validate the outcome of Cluster and better analyze the data.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggcorrplot::ggcorrplot(cor(singapore_new[,c(-1:-3,-6,-10,-15)]), hc.order = TRUE)+ggtitle('Figure A-9 Results - UML 4. Apply Principal Component Analysis ')
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+PCA_data= prcomp(singapore_new_subset, rank=5,scale=TRUE)
+sum_pca=data.frame(summary(PCA_data)$importance)
+kable(sum_pca,caption="Table 4.1 : Summary of PCA Variance ")%>%kable_styling(position="center", full_width = NULL)
+
+singapore_new_kmeans['pca1']=PCA_data[['x']][,1]
+singapore_new_kmeans['pca2']=PCA_data[['x']][,2]
+
+loadings_summary = PCA_data$rotation %>%
+  as.data.frame() %>%
+  rownames_to_column('Variables')
+
+kable(loadings_summary[,c(1:3)]%>%as.data.frame(),caption="Table 4.2 : Variables in PCA")%>%kable_styling(position="center", full_width = NULL)
+```
+Table 4.1 illustrates that variance cumulation of PCA variance. Proportion of Variance means How much variance been explained in this dimension. Cumulative Proportion means how much variance been explained in cumulation. In this table, we will reduce the dimension from 5 to 2 because PC1 and PC2 have explained 57.4% of PCA Variance. 
+Table 4.2 illustrates provides some insighful explaination for PCA. For example, the higher for the value of PCA, the higher of the price, minimum nights and availability.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+## visualize the Cluster in PCA
+ggplot(data=singapore_new_kmeans)+
+  geom_point(aes(x=pca1,y=pca2,color=Cluster))+
+  ggtitle('Figure 4.1 Cluster in PCA')+
+  theme(plot.title = element_text(hjust = 0.5))
+```
+Figure 4.1 Cluster in PCA shows the 5 different clusters in pca1 and pca2. Using pca1 and pca2, we can extract all information only 2 dimensions and better explain the propertied of different clusters. As shown in this figure, 5 clusters have been clearly partitioned mutually and exclusively.
+
+(1).From the pc1 dimension, Cluster **popular and quick budget-friendly**, **affordable longer getaway listings**, **mid-range highly accessible**, **Extended Stay Listings** and **high-end listings** lies in pc1 dimension in order from bottom to top. This dimension vividly illustrates the variation of price from low to high. Especially, the **popular and quick budget-friendly** lies far from the origin negatively, which reflects the situation for the low price of this cluster.
+
+(2).From the pc2 dimension, Cluster **Extended Stay Listings**, **affordable longer getaway listings**, **popular and quick budget-friendly**, **mid-range highly accessible** and **high-end listings** lies in pc2 dimension in order from bottom to top. This dimension vividly illustrates the variation of **price**, **minimum nights** and **availability_365**.
+
+For **price** level, high-end listings lies far from the origin positively, which shows the property of highest price.
+For **minimum nights** level, Cluster **Extended Stay Listings** lies far from the origin negatively, which shows demanding requirement for long **minimum nights**. 
+
+For **availability_365** level, Cluster **mid-range highly accessible** slightly lies above **affordable longer getaway listings** and **popular and quick budget-friendly**, which accurately reflect that **mid-range highly accessible** shares good property of accessibility. 
+
+5. Visualizing the Difference Between Property Types in Different Singapore Areas
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggmap(sg_map,darken=c('0.70', '#030d2f')) + geom_point(data = singapore_new_kmeans, aes(x = longitude, y = latitude, colour =Cluster), size = 1, alpha = 0.7) + xlab('') + ylab('') + labs(colour = 'Cluster')+ggtitle('Figure 5.1 Clusters in Singapore')+theme(plot.title = element_text(hjust = 0.5))
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+## room types
+plot1=ggplot(data=singapore_new_kmeans%>%
+  group_by(Cluster,room_type)%>%
+  count(Cluster))+
+geom_bar(aes(x=Cluster,y=n,fill=room_type),position="dodge",stat="identity")+
+  coord_flip()+ggtitle("3.3 Room Type and Neighbourhood in Clusters")+
+  ylab('')
+
+## Neighbourhood_group
+plot2=ggplot(data=singapore_new_kmeans%>%
+  group_by(Cluster,neighbourhood_group)%>%
+  count(Cluster))+
+geom_bar(aes(x=Cluster,y=n,fill=neighbourhood_group),position="dodge",stat="identity")+
+  coord_flip()+ylab('number')
+
+plot_grid(plot1,plot2,labels=c("",""),ncol=1,nrow=3,align='vc')
+```
+
+5.1 Room Types
+For Figure 5.1, we find that **private room** and **entire room** are main types for these 5 clusters. For **mid-range highly accessible** and **affordable longer getaway listings**, they includes **hotel** and **shared_room** 
+
+5.2 Neighborhood
+For Figure 5.1, we find that **Central Region** and **West Region** are main regions for these different cluster. For Figure 5.3, We take a new look at the distribution of Cluster in **Central Region**. Here are popular locations for different Clusters. **Downtown Core**, **Geylang**, **Orchard** and **Outram** are main location for **popular and quick budget-friendly**, **mid-range highly accessible** and **affordable longer getaway listings**. **Rochor** is main location for **high-end listings**.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+## popular and quick budget-friendly
+center_1=ggplot(data=singapore_new_kmeans%>%
+  filter(neighbourhood_group=="Central Region",Cluster=="popular and quick budget-friendly")%>%
+  group_by(Cluster,neighbourhood)%>%
+  count(Cluster))+
+geom_bar(aes(x=Cluster,y=n,fill=neighbourhood),position="dodge",stat="identity")+
+   ylab('number')+ theme(legend.position="none")+xlab('')
+
+## mid-range highly accessible
+center_2=ggplot(data=singapore_new_kmeans%>%
+  filter(neighbourhood_group=="Central Region", Cluster=="mid-range highly accessible")%>%
+  group_by(Cluster,neighbourhood)%>%
+  count(Cluster))+
+geom_bar(aes(x=Cluster,y=n,fill=neighbourhood),position="dodge",stat="identity")+
+   ylab('')+ theme(legend.position="none")+xlab('')
+
+## affordable longer getaway listings
+center_3=ggplot(data=singapore_new_kmeans%>%
+  filter(neighbourhood_group=="Central Region",Cluster=="affordable longer getaway listings")%>%
+  group_by(Cluster,neighbourhood)%>%
+  count(Cluster))+
+geom_bar(aes(x=Cluster,y=n,fill=neighbourhood),position="dodge",stat="identity")+
+ ylab('number')+ theme(legend.position="none")+xlab('')
+
+
+#Extended Stay Listings
+center_4=ggplot(data=singapore_new_kmeans%>%
+  filter(neighbourhood_group=="Central Region",Cluster=="Extended Stay Listings")%>%
+  group_by(Cluster,neighbourhood)%>%
+  count(Cluster))+
+geom_bar(aes(x=Cluster,y=n,fill=neighbourhood),position="dodge",stat="identity")+
+  ylab('')+ theme(legend.position="none")
+
+
+
+#high-end listings
+center_5=ggplot(data=singapore_new_kmeans%>%
+  filter(neighbourhood_group=="Central Region",Cluster=="high-end listings")%>%
+  group_by(Cluster,neighbourhood)%>%
+  count(Cluster))+
+geom_bar(aes(x=Cluster,y=n,fill=neighbourhood),position="dodge",stat="identity")+
+ ylab('number')+ theme(legend.position="none")+xlab('')
+
+
+ 
+legend_b <- get_legend(
+  center_1 + 
+    guides(color = guide_legend(nrow = 1)) +
+    theme(legend.position = "right")
+)
+ 
+plot_grid(center_1,center_2,NULL,center_3,center_4,legend_b,center_5,NULL,NULL,labels=c("","","","",""),ncol=3,nrow=3,align='v')
+```
+
+## Conclusion:
+
+In this project, we implement machine learning algorithms to achieve market segmentation in Singapore. After cleansing several Airbnb datasets, we conducted EDA (exploratory data analysis). We then employed K-means Clustering and Principal Component Analysis to identify several practical and clear segments with shared features. These shared features included things like price, availability, popularity, and minimum number of nights. After grouping individual listings into their appropriate clusters, we constructed several advanced geospatial visualizations and plots that illuminated interesting aspects of the data.
+
+The project identified the following key segments:
+1. Extended Stay Listings
+2. High-End Listings
+3. Popular, Quick, Budget-Friendly Listings
+4. Affordable Longer Getaway Listings
+5. Mid-Range Accessible Listings
+
+Admittedly, the project still has several limitations: (1) The result of clustering is not balanced. For example, Affordable Longer Getaway Listings and Mid-Range Accessible Listings take almost 70% of the whole dataset while High-End Listings take only 10 listings. (2) Lack of time-variation scale. The dataset is the newest information on the Singapore market. It would be better if we could make the contrast between the existing and the past. 
+
+This project is beneficial for several reasons. It successfully addresses the primary business problem and achieves the overall business aim. The key segments that we identified can help Airbnb craft use full marketing strategies and promotions that effectively target customers. Last but not least, the purpose for this project is to help our classmate Jipeng Cheng, who is candidate PhD student of Singapore Management University and provide insightful instructions with details selflessly for graduate studying, better seek for apartment in Singapore.
